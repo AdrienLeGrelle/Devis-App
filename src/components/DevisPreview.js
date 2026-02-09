@@ -12,17 +12,15 @@ const QUOTE_ID = 'current';
 const IMAGES_KEY = `quoteImages:${QUOTE_ID}`;
 const LAYOUT_KEY = `quoteBlocksLayout:${QUOTE_ID}`;
 
-// A4 @ 96dpi
-const PAGE_WIDTH_PX = 794;
-const PAGE_HEIGHT_PX = 1123;
-const PAGE_PADDING = 48;
+const PAGE_W = 794;
+const PAGE_H = 1123;
+const PADDING = 48;
 const MARGIN_BOTTOM = 48;
-const CONTENT_W = PAGE_WIDTH_PX - 2 * PAGE_PADDING;
-const CONTENT_H = PAGE_HEIGHT_PX - 2 * PAGE_PADDING;
 
 const BLOCK_IDS = [
   'headerTitle',
   'companyCard',
+  'headerSeparator',
   'billedTo',
   'itemsTable',
   'materielDetail',
@@ -41,7 +39,6 @@ function loadImages() {
       y: img.y ?? 100,
       w: img.w ?? 200,
       h: img.h ?? 150,
-      pageIndex: img.pageIndex ?? 0,
     }));
   } catch (e) {
     return [];
@@ -61,11 +58,9 @@ function loadLayout() {
     const migrated = {};
     for (const [id, val] of Object.entries(parsed)) {
       if (val && typeof val === 'object' && ('x' in val || 'y' in val)) {
-        migrated[id] = {
-          pageIndex: val.pageIndex ?? 0,
-          x: val.x ?? 0,
-          y: val.y ?? 0,
-        };
+        const item = { x: val.x ?? 0, y: val.y ?? 0 };
+        if (val.w != null && typeof val.w === 'number') item.w = val.w;
+        migrated[id] = item;
       }
     }
     return Object.keys(migrated).length > 0 ? migrated : null;
@@ -78,214 +73,25 @@ function saveLayout(layout) {
   localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
 }
 
-const initialQuoteState = () => {
-  const savedLayout = loadLayout();
-  return {
-    layoutOffsets: savedLayout || {},
-    pastedImages: loadImages(),
-  };
-};
+const initialQuoteState = () => ({
+  layoutOffsets: loadLayout() || {},
+  pastedImages: loadImages(),
+});
 
 const SAVE_DEBOUNCE_MS = 300;
-
-// Composant pour un bloc draggable avec wrapper unique
-function DraggableBlock({ id, block, content, isLayoutEdit, onDragStart, onDrag, onDragStop, pageRef }) {
-  const wrapperRef = useRef(null);
-  const x = block.x ?? 0;
-  const y = block.y ?? 0;
-  const posX = PAGE_PADDING + x;
-  const posY = PAGE_PADDING + y;
-
-  if (!isLayoutEdit) {
-    return (
-      <div
-        ref={wrapperRef}
-        className="block-wrapper"
-        data-block-wrapper-id={id}
-        style={{
-          position: 'absolute',
-          left: posX,
-          top: posY,
-          zIndex: 1,
-        }}
-      >
-        {content}
-      </div>
-    );
-  }
-
-  return (
-    <Draggable
-      position={{ x: posX, y: posY }}
-      onStart={onDragStart}
-      onDrag={onDrag}
-      onStop={onDragStop}
-      handle=".block-drag-handle"
-      cancel="input,textarea,select,button,a"
-    >
-      <div
-        ref={wrapperRef}
-        className="block-wrapper block-editing"
-        data-block-wrapper-id={id}
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          zIndex: 10,
-        }}
-      >
-        <span className="block-drag-handle" title="Glisser" />
-        <div className="block-outline" />
-        {content}
-      </div>
-    </Draggable>
-  );
-}
-
-// Composant pour une page A4
-function LayoutPage({
-  pageIndex,
-  blocksOnPage,
-  blockContents,
-  isLayoutEdit,
-  pastedImages,
-  onBlockDragStart,
-  onBlockDrag,
-  onBlockDragStop,
-  onImageDrag,
-  onImageDragStop,
-  onImageResize,
-  onImageResizeStop,
-  onImageDelete,
-  selectedImageId,
-  setSelectedImageId,
-  updateImage,
-  clampToPage,
-  commit,
-  pageRef,
-}) {
-  const headerBlocks = ['headerTitle', 'companyCard'];
-  const hasHeader = headerBlocks.some((id) => blocksOnPage.includes(id));
-  const hasHeaderLeft = blocksOnPage.includes('headerTitle');
-  const hasHeaderRight = blocksOnPage.includes('companyCard');
-  const allHaveLayout = blocksOnPage.length > 0 && blocksOnPage.every((id) => blockContents[id] !== undefined);
-
-  return (
-    <div className="page-wrapper">
-      <div className="page-label">Page {pageIndex + 1}</div>
-      <div
-        ref={pageRef}
-        className="page"
-        data-page={pageIndex}
-        style={{
-          width: PAGE_WIDTH_PX,
-          height: PAGE_HEIGHT_PX,
-          padding: PAGE_PADDING,
-          position: 'relative',
-        }}
-      >
-        <div className="page-inner">
-          {!allHaveLayout ? (
-            <>
-              {hasHeader ? (
-                <div className="devis-header">
-                  {hasHeaderLeft && blockContents['headerTitle']?.content}
-                  {hasHeaderRight && blockContents['companyCard']?.content}
-                </div>
-              ) : (
-                <>
-                  {blocksOnPage.includes('headerTitle') && blockContents['headerTitle']?.content}
-                  {blocksOnPage.includes('companyCard') && blockContents['companyCard']?.content}
-                </>
-              )}
-              {blocksOnPage.includes('billedTo') && blockContents['billedTo']?.content}
-              {blocksOnPage.includes('itemsTable') && blockContents['itemsTable']?.content}
-              {blocksOnPage.includes('materielDetail') && blockContents['materielDetail']?.content}
-              {blocksOnPage.includes('totalBox') && blockContents['totalBox']?.content}
-              {blocksOnPage.includes('notesSection') && blockContents['notesSection']?.content}
-              {blocksOnPage.includes('footerSection') && blockContents['footerSection']?.content}
-            </>
-          ) : (
-            blocksOnPage.map((id) => {
-              const block = blockContents[id]?.block;
-              const content = blockContents[id]?.content;
-              if (!block || !content) return null;
-              return (
-                <DraggableBlock
-                  key={id}
-                  id={id}
-                  block={block}
-                  content={content}
-                  isLayoutEdit={isLayoutEdit}
-                  onDragStart={() => onBlockDragStart(id)}
-                  onDrag={(e, d) => onBlockDrag(id, e, d, false)}
-                  onDragStop={(e, d) => onBlockDrag(id, e, d, true)}
-                  pageRef={pageRef}
-                />
-              );
-            })
-          )}
-        </div>
-
-        {pastedImages
-          .filter((img) => (img.pageIndex ?? 0) === pageIndex)
-          .map((img) => (
-            <Rnd
-              key={img.id}
-              size={{ width: img.w ?? 200, height: img.h ?? 150 }}
-              position={{ x: img.x ?? 100, y: img.y ?? 100 }}
-              onDragStart={() => commit()}
-              onDrag={(e, d) => onImageDrag(img.id, e, d, false)}
-              onDragStop={(e, d) => onImageDrag(img.id, e, d, true)}
-              onResizeStart={() => commit()}
-              onResize={(e, direction, ref, delta, position) => {
-                onImageResize(img.id, ref, position);
-              }}
-              onResizeStop={(e, direction, ref, delta, position) => {
-                const w = parseInt(ref.style.width, 10);
-                const h = parseInt(ref.style.height, 10);
-                const c = clampToPage(position.x, position.y, w, h);
-                onImageResizeStop(img.id, w, h, c.x, c.y);
-              }}
-              onMouseDown={() => isLayoutEdit && setSelectedImageId(img.id)}
-              disableDragging={!isLayoutEdit}
-              enableResizing={isLayoutEdit}
-              className={`pasted-image ${isLayoutEdit ? 'pasted-image--editing' : ''} ${isLayoutEdit && selectedImageId === img.id ? 'selected' : ''}`}
-            >
-              <img src={img.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              {isLayoutEdit && selectedImageId === img.id && (
-                <button
-                  type="button"
-                  className="image-delete-btn"
-                  onClick={() => onImageDelete(img.id)}
-                  title="Supprimer"
-                >
-                  ×
-                </button>
-              )}
-            </Rnd>
-          ))}
-      </div>
-    </div>
-  );
-}
 
 function DevisPreview({ devisData, inventory, registerUndoManager }) {
   const [isLayoutEdit, setIsLayoutEdit] = useState(false);
   const [selectedImageId, setSelectedImageId] = useState(null);
+  const [blockOrigins, setBlockOrigins] = useState({});
   const [layoutResetKey, setLayoutResetKey] = useState(0);
-  const [minPages, setMinPages] = useState(1);
-  const pageRefs = useRef({});
-  const docContainerRef = useRef(null);
+  const pageRef = useRef(null);
 
-  const quoteUndo = useUndoRedo(initialQuoteState(), 30);
+  const quoteUndo = useUndoRedo(initialQuoteState(), 50);
   const { present, setPresent, commit, undo, redo, canUndo, canRedo } = quoteUndo;
   const { layoutOffsets, pastedImages } = present;
 
-  const getBlockData = (id) => layoutOffsets[id] || { pageIndex: 0, x: 0, y: 0 };
-  const maxPageFromBlocks = Math.max(0, ...Object.values(layoutOffsets).map((o) => (o?.pageIndex ?? 0)));
-  const maxPageFromImages = Math.max(0, ...pastedImages.map((img) => img.pageIndex ?? 0));
-  const pageCount = Math.max(minPages, maxPageFromBlocks + 1, maxPageFromImages + 1);
+  const getBlockData = (id) => layoutOffsets[id] || { x: 0, y: 0, w: undefined };
 
   useEffect(() => {
     if (registerUndoManager) {
@@ -319,37 +125,6 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
     };
   }, [pastedImages, layoutOffsets]);
 
-  const findPageUnderPoint = useCallback((clientX, clientY) => {
-    for (let pi = 0; pi < pageCount; pi++) {
-      const el = pageRefs.current[pi];
-      if (!el) continue;
-      const rect = el.getBoundingClientRect();
-      if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-        return pi;
-      }
-    }
-    return null;
-  }, [pageCount]);
-
-  const screenToPageCoords = useCallback((clientX, clientY, pageIndex) => {
-    const el = pageRefs.current[pageIndex];
-    if (!el) return { x: 0, y: 0 };
-    const rect = el.getBoundingClientRect();
-    return {
-      x: clientX - rect.left - PAGE_PADDING,
-      y: clientY - rect.top - PAGE_PADDING,
-    };
-  }, []);
-
-  const clampToPage = useCallback((x, y, w, h) => {
-    const maxX = Math.max(0, CONTENT_W - (w || 0));
-    const maxY = Math.max(0, CONTENT_H - (h || 0));
-    return {
-      x: Math.max(0, Math.min(maxX, x)),
-      y: Math.max(0, Math.min(maxY, y)),
-    };
-  }, []);
-
   const handlePaste = useCallback(
     (e) => {
       if (!isLayoutEdit) return;
@@ -364,11 +139,10 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
             const newImg = {
               id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `img-${Date.now()}`,
               src: ev.target.result,
-              x: Math.floor(CONTENT_W / 2 - 100),
-              y: Math.floor(CONTENT_H / 2 - 75),
+              x: 100,
+              y: 100,
               w: 200,
               h: 150,
-              pageIndex: 0,
             };
             setPresent(
               (prev) => ({ ...prev, pastedImages: [...prev.pastedImages, newImg] }),
@@ -393,7 +167,7 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
       setPresent(
         (prev) => {
           const nextImages = prev.pastedImages.map((img) =>
-            img.id === id ? { ...img, ...updates, pageIndex: updates.pageIndex ?? img.pageIndex ?? 0 } : img
+            img.id === id ? { ...img, ...updates } : img
           );
           if (options.saveImmediate) saveImages(nextImages);
           return { ...prev, pastedImages: nextImages };
@@ -418,106 +192,55 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
     [setPresent]
   );
 
-  const handleBlockDragStart = useCallback((id) => commit(), [commit]);
+  const handleLayoutDragStart = useCallback(() => commit(), [commit]);
 
-  const handleBlockDrag = useCallback(
-    (id, e, d, applyClamp = false) => {
-      const block = getBlockData(id);
-      const pageIndex = block.pageIndex ?? 0;
-      
-      const pageEl = pageRefs.current[pageIndex];
-      const wrapper = pageEl?.querySelector(`[data-block-wrapper-id="${id}"]`);
-      const wrapperRect = wrapper?.getBoundingClientRect();
-      const w = wrapperRect?.width || 0;
-      const h = wrapperRect?.height || 0;
-
-      const hoveredPage = findPageUnderPoint(e.clientX, e.clientY);
-      let targetPage = hoveredPage != null ? hoveredPage : pageIndex;
-      let newX;
-      let newY;
-
-      if (hoveredPage !== null && hoveredPage !== pageIndex) {
-        const coords = screenToPageCoords(e.clientX, e.clientY, hoveredPage);
-        newX = coords.x;
-        newY = coords.y;
-        targetPage = hoveredPage;
-      } else {
-        newX = d.x - PAGE_PADDING;
-        newY = d.y - PAGE_PADDING;
-      }
-
-      if (applyClamp && (w || h)) {
-        const c = clampToPage(newX, newY, w, h);
-        newX = c.x;
-        newY = c.y;
-      }
-
-      if (targetPage >= pageCount) {
-        setMinPages((p) => Math.max(p, targetPage + 1));
-      }
-
+  const handleLayoutDrag = useCallback(
+    (id, e, d, orig) => {
+      const newX = d.x;
+      const newY = d.y;
       setPresent((prev) => {
+        const existing = prev.layoutOffsets[id] || {};
         const nextLayout = {
           ...prev.layoutOffsets,
-          [id]: { pageIndex: targetPage, x: newX, y: newY },
+          [id]: { ...existing, x: newX, y: newY },
         };
-        if (applyClamp) saveLayout(nextLayout);
         return { ...prev, layoutOffsets: nextLayout };
-      }, applyClamp ? { commit: true } : {});
+      }, {});
     },
-    [setPresent, findPageUnderPoint, screenToPageCoords, clampToPage, pageCount]
+    [setPresent]
+  );
+
+  const handleLayoutDragStop = useCallback(
+    (id, e, d, orig) => {
+      const newX = d.x;
+      const newY = d.y;
+      setPresent((prev) => {
+        const existing = prev.layoutOffsets[id] || {};
+        const nextLayout = {
+          ...prev.layoutOffsets,
+          [id]: { ...existing, x: newX, y: newY },
+        };
+        saveLayout(nextLayout);
+        return { ...prev, layoutOffsets: nextLayout };
+      }, { commit: true });
+    },
+    [setPresent]
   );
 
   const handleImageDrag = useCallback(
-    (imgId, e, d, applyClamp = false) => {
-      const img = pastedImages.find((i) => i.id === imgId);
-      if (!img) return;
-      const pageIndex = img.pageIndex ?? 0;
-
-      const hoveredPage = findPageUnderPoint(e.clientX, e.clientY);
-      let targetPage = hoveredPage != null ? hoveredPage : pageIndex;
-      let newX = d.x;
-      let newY = d.y;
-
-      if (hoveredPage !== null && hoveredPage !== pageIndex) {
-        const coords = screenToPageCoords(e.clientX, e.clientY, hoveredPage);
-        newX = coords.x;
-        newY = coords.y;
-        targetPage = hoveredPage;
-      }
-
-      if (applyClamp) {
-        const w = img.w ?? 200;
-        const h = img.h ?? 150;
-        const c = clampToPage(newX, newY, w, h);
-        newX = c.x;
-        newY = c.y;
-      }
-
-      if (targetPage >= pageCount) {
-        setMinPages((p) => Math.max(p, targetPage + 1));
-      }
-
-      updateImage(imgId, { x: newX, y: newY, pageIndex: targetPage }, applyClamp ? { commit: true, saveImmediate: true } : {});
-    },
-    [pastedImages, findPageUnderPoint, screenToPageCoords, clampToPage, updateImage, pageCount]
-  );
-
-  const handleImageResize = useCallback(
-    (imgId, ref, position) => {
-      updateImage(imgId, {
-        w: parseInt(ref.style.width, 10),
-        h: parseInt(ref.style.height, 10),
-        x: position.x,
-        y: position.y,
-      });
+    (imgId, d) => {
+      const newX = d.x;
+      const newY = d.y;
+      updateImage(imgId, { x: newX, y: newY }, {});
     },
     [updateImage]
   );
 
-  const handleImageResizeStop = useCallback(
-    (imgId, w, h, x, y) => {
-      updateImage(imgId, { w, h, x, y }, { commit: true, saveImmediate: true });
+  const handleImageDragStop = useCallback(
+    (imgId, d) => {
+      const newX = d.x;
+      const newY = d.y;
+      updateImage(imgId, { x: newX, y: newY }, { commit: true, saveImmediate: true });
     },
     [updateImage]
   );
@@ -526,102 +249,48 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
     saveLayout(layoutOffsets);
     saveImages(pastedImages);
     setIsLayoutEdit(false);
-    setSelectedImageId(null);
   }, [layoutOffsets, pastedImages]);
 
   const handleResetLayout = useCallback(() => {
     localStorage.removeItem(LAYOUT_KEY);
     setPresent((prev) => ({ ...prev, layoutOffsets: {} }), { commit: false });
-    setMinPages(1);
+    setBlockOrigins({});
     setLayoutResetKey((k) => k + 1);
   }, [setPresent]);
 
-  const handleAddPage = useCallback(() => {
-    setMinPages((p) => p + 1);
-  }, []);
-
-  const initLayoutFromFlow = useCallback(() => {
-    if (Object.keys(layoutOffsets).length > 0) return;
+  useEffect(() => {
+    if (!isLayoutEdit) {
+      setBlockOrigins({});
+      return;
+    }
     const timer = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const init = {};
-        for (let pi = 0; pi < pageCount; pi++) {
-          const pageEl = pageRefs.current[pi];
-          if (!pageEl) continue;
-          BLOCK_IDS.forEach((id) => {
-            const wrapper = pageEl.querySelector(`[data-block-wrapper-id="${id}"]`);
-            if (wrapper) {
-              const pageRect = pageEl.getBoundingClientRect();
-              const rect = wrapper.getBoundingClientRect();
-              init[id] = {
-                pageIndex: pi,
-                x: rect.left - pageRect.left - PAGE_PADDING,
-                y: rect.top - pageRect.top - PAGE_PADDING,
-              };
-            }
-          });
-        }
-        if (Object.keys(init).length > 0) {
-          setPresent((prev) => ({ ...prev, layoutOffsets: init }), { commit: false });
-        }
+        const container = pageRef.current;
+        if (!container) return;
+        const containerRect = container.getBoundingClientRect();
+        const blocks = {};
+        BLOCK_IDS.forEach((id) => {
+          const el = container.querySelector(`[data-block-id="${id}"]`);
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            const offset = layoutOffsets[id] || { x: 0, y: 0 };
+            const x = rect.left - containerRect.left - PADDING;
+            const y = rect.top - containerRect.top - PADDING;
+            blocks[id] = {
+              x,
+              y,
+              w: rect.width,
+              h: rect.height,
+              baseX: x - (offset.x || 0),
+              baseY: y - (offset.y || 0),
+            };
+          }
+        });
+        if (Object.keys(blocks).length > 0) setBlockOrigins(blocks);
       });
     });
     return () => cancelAnimationFrame(timer);
-  }, [layoutOffsets, pageCount, setPresent]);
-
-  useEffect(() => {
-    if (!devisData || Object.keys(layoutOffsets).length > 0) return;
-    const t = setTimeout(initLayoutFromFlow, 100);
-    return () => clearTimeout(t);
-  }, [devisData, layoutOffsets, initLayoutFromFlow]);
-
-  const reflowOverflow = useCallback(() => {
-    if (!docContainerRef.current) return;
-    const newLayout = { ...layoutOffsets };
-    let changed = false;
-
-    for (let pi = 0; pi < pageCount; pi++) {
-      const pageEl = pageRefs.current[pi];
-      if (!pageEl) continue;
-
-      for (const id of BLOCK_IDS) {
-        const block = layoutOffsets[id] || { pageIndex: 0, x: 0, y: 0 };
-        if ((block.pageIndex ?? 0) !== pi) continue;
-
-        const wrapper = pageEl.querySelector(`[data-block-wrapper-id="${id}"]`);
-        if (!wrapper) continue;
-
-        const rect = wrapper.getBoundingClientRect();
-        const pageRect = pageEl.getBoundingClientRect();
-        const blockBottom = rect.bottom - pageRect.top - PAGE_PADDING;
-        const maxY = CONTENT_H - MARGIN_BOTTOM;
-
-        if (blockBottom > maxY) {
-          const nextPage = pi + 1;
-          newLayout[id] = { ...block, pageIndex: nextPage, x: block.x ?? 0, y: PAGE_PADDING };
-          changed = true;
-          if (nextPage >= pageCount) setMinPages((p) => Math.max(p, nextPage + 1));
-        }
-      }
-    }
-
-    if (changed) {
-      setPresent((prev) => ({ ...prev, layoutOffsets: newLayout }), { commit: false });
-    }
-  }, [layoutOffsets, pageCount, setPresent]);
-
-  useEffect(() => {
-    if (!devisData) return;
-    const ro = new ResizeObserver(() => {
-      requestAnimationFrame(() => requestAnimationFrame(reflowOverflow));
-    });
-    const container = docContainerRef.current;
-    if (container) {
-      const wrappers = container.querySelectorAll('[data-block-wrapper-id]');
-      wrappers.forEach((el) => ro.observe(el));
-    }
-    return () => ro.disconnect();
-  }, [devisData, reflowOverflow, layoutOffsets, pageCount]);
+  }, [isLayoutEdit, layoutResetKey, layoutOffsets]);
 
   if (!devisData) {
     return (
@@ -650,8 +319,16 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
   const datePresta = devisData.dateDebutPrestation || devisData.date;
   const detailMateriel = formule?.setId ? getItemsBySet(inventory || {}, formule.setId, datePresta) : [];
 
-  const renderBlockContent = (id) => {
-    const common = { 'data-block-id': id };
+  const getBlockTransform = (id) => {
+    const o = getBlockData(id);
+    if (!o || (o.x === 0 && o.y === 0)) return undefined;
+    return `translate(${o.x}px, ${o.y}px)`;
+  };
+
+  const renderBlock = (id) => {
+    const transform = getBlockTransform(id);
+    const style = transform ? { transform } : undefined;
+    const common = { key: id, 'data-block-id': id, style };
 
     switch (id) {
       case 'headerTitle':
@@ -680,6 +357,18 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
             </div>
           </div>
         );
+      case 'headerSeparator': {
+        const data = getBlockData(id);
+        const sepStyle = {
+          ...common.style,
+          ...(data.w != null && { width: `${data.w}px` }),
+        };
+        return (
+          <div className="separator-line-block" {...common} style={sepStyle}>
+            <div className="separator-line-inner" />
+          </div>
+        );
+      }
       case 'billedTo':
         return (
           <div className="client-section" {...common}>
@@ -797,15 +486,6 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
     }
   };
 
-  const blockContents = {};
-  BLOCK_IDS.forEach((id) => {
-    const block = getBlockData(id);
-    const content = renderBlockContent(id);
-    if (content) {
-      blockContents[id] = { block, content };
-    }
-  });
-
   return (
     <div className={`devis-preview ${isLayoutEdit ? 'is-layout-edit' : ''}`}>
       <div className="preview-toolbar">
@@ -817,14 +497,9 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
           {isLayoutEdit ? 'Terminer' : 'Modifier la mise en page'}
         </button>
         {isLayoutEdit && (
-          <>
-            <button type="button" className="toolbar-btn" onClick={handleResetLayout}>
-              Réinitialiser
-            </button>
-            <button type="button" className="toolbar-btn" onClick={handleAddPage}>
-              + Ajouter une page
-            </button>
-          </>
+          <button type="button" className="toolbar-btn" onClick={handleResetLayout}>
+            Réinitialiser
+          </button>
         )}
         <button type="button" className="toolbar-btn" onClick={() => window.print()} title="Imprimer / Export PDF">
           🖨️ Imprimer
@@ -833,36 +508,121 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
           <span className="toolbar-hint">Ctrl+V pour coller une image</span>
         )}
       </div>
-      <div className="preview-container" ref={docContainerRef}>
-        <div className="pages-container">
-          {Array.from({ length: pageCount }, (_, slotIndex) => {
-            const pageIndex = slotIndex;
-            const blocksOnPage = BLOCK_IDS.filter((id) => (getBlockData(id).pageIndex ?? 0) === pageIndex);
-            return (
-              <LayoutPage
-                key={`page-${pageIndex}`}
-                pageIndex={pageIndex}
-                blocksOnPage={blocksOnPage}
-                blockContents={blockContents}
-                isLayoutEdit={isLayoutEdit}
-                pastedImages={pastedImages}
-                onBlockDragStart={handleBlockDragStart}
-                onBlockDrag={handleBlockDrag}
-                onBlockDragStop={handleBlockDrag}
-                onImageDrag={handleImageDrag}
-                onImageDragStop={handleImageDrag}
-                onImageResize={handleImageResize}
-                onImageResizeStop={handleImageResizeStop}
-                onImageDelete={deleteImage}
-                selectedImageId={selectedImageId}
-                setSelectedImageId={setSelectedImageId}
-                updateImage={updateImage}
-                clampToPage={clampToPage}
-                commit={commit}
-                pageRef={(el) => { pageRefs.current[pageIndex] = el; }}
-              />
-            );
-          })}
+      <div className="preview-container">
+        <div className="page-wrapper">
+          <div
+            ref={pageRef}
+            className="page"
+            style={{
+              width: PAGE_W,
+              height: PAGE_H,
+              padding: PADDING,
+            }}
+          >
+            <div className="page-inner">
+              <div className="devis-header">
+                {renderBlock('headerTitle')}
+                {renderBlock('companyCard')}
+              </div>
+              {renderBlock('headerSeparator')}
+              {renderBlock('billedTo')}
+              {renderBlock('itemsTable')}
+              {renderBlock('materielDetail')}
+              {renderBlock('totalBox')}
+              {renderBlock('notesSection')}
+              {renderBlock('footerSection')}
+            </div>
+
+            {isLayoutEdit && Object.keys(blockOrigins).length > 0 && (
+              <div
+                className="layout-overlay"
+                style={{
+                  pointerEvents: 'none',
+                  top: PADDING,
+                  left: PADDING,
+                  right: PADDING,
+                  bottom: PADDING,
+                }}
+              >
+                {Object.entries(blockOrigins).map(([id, orig]) => {
+                  const offset = getBlockData(id);
+                  const baseX = orig.baseX ?? orig.x - (offset.x || 0);
+                  const baseY = orig.baseY ?? orig.y - (offset.y || 0);
+                  return (
+                    <Draggable
+                      key={id}
+                      position={{ x: offset.x || 0, y: offset.y || 0 }}
+                      positionOffset={{ x: baseX, y: baseY }}
+                      onStart={handleLayoutDragStart}
+                      onDrag={(e, d) => handleLayoutDrag(id, e, d, orig)}
+                      onStop={(e, d) => handleLayoutDragStop(id, e, d, orig)}
+                      handle=".layout-drag-handle"
+                      cancel="input,textarea,select,button,a"
+                    >
+                      <div
+                        className="layout-overlay-frame"
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: 0,
+                          width: orig.w,
+                          height: orig.h,
+                          pointerEvents: 'auto',
+                        }}
+                      >
+                        <span className="layout-drag-handle" title="Glisser" />
+                      </div>
+                    </Draggable>
+                  );
+                })}
+              </div>
+            )}
+
+            {pastedImages.map((img) => (
+              <Rnd
+                key={img.id}
+                size={{ width: img.w ?? 200, height: img.h ?? 150 }}
+                position={{ x: img.x ?? 100, y: img.y ?? 100 }}
+                onDragStart={() => commit()}
+                onDrag={(e, d) => handleImageDrag(img.id, d)}
+                onDragStop={(e, d) => handleImageDragStop(img.id, d)}
+                onResizeStart={() => commit()}
+                onResize={(e, direction, ref, delta, position) => {
+                  updateImage(img.id, {
+                    w: parseInt(ref.style.width, 10),
+                    h: parseInt(ref.style.height, 10),
+                    x: position.x,
+                    y: position.y,
+                  });
+                }}
+                onResizeStop={(e, direction, ref, delta, position) => {
+                  updateImage(img.id, {
+                    w: parseInt(ref.style.width, 10),
+                    h: parseInt(ref.style.height, 10),
+                    x: position.x,
+                    y: position.y,
+                  }, { commit: true, saveImmediate: true });
+                }}
+                onMouseDown={() => isLayoutEdit && setSelectedImageId(img.id)}
+                disableDragging={!isLayoutEdit}
+                enableResizing={isLayoutEdit}
+                bounds={undefined}
+                className={`pasted-image ${isLayoutEdit ? 'pasted-image--editing' : ''} ${isLayoutEdit && selectedImageId === img.id ? 'selected' : ''}`}
+              >
+                <img src={img.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                {isLayoutEdit && selectedImageId === img.id && (
+                  <button
+                    type="button"
+                    className="image-delete-btn"
+                    onClick={() => deleteImage(img.id)}
+                    title="Supprimer"
+                  >
+                    ×
+                  </button>
+                )}
+              </Rnd>
+            ))}
+          </div>
         </div>
       </div>
     </div>
