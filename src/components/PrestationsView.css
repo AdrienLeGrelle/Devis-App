@@ -1,0 +1,50 @@
+.prestations {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.prestations-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.prestations-header h2 {
+  margin: 0;
+}
+
+.subtitle {
+  color: #666;
+  font-size: 13px;
+  margin: 0;
+}
+
+.view-switch {
+  display: flex;
+  gap: 8px;
+}
+
+.switch {
+  border: 1px solid #d0d4ff;
+  background: #f7f8ff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #4a4f7c;
+}
+
+.switch.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+@media (max-width: 768px) {
+  .prestations-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+

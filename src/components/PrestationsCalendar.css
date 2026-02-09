@@ -1,0 +1,112 @@
+.prestations-calendar {
+  background: #fff;
+  border: 1px solid #ececf5;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.calendar-header h3 {
+  margin: 0;
+  text-transform: capitalize;
+}
+
+.calendar-header button {
+  border: 1px solid #e1e4f0;
+  background: #f6f7ff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.weekday {
+  text-align: center;
+  font-size: 12px;
+  color: #777;
+  font-weight: 600;
+}
+
+.day {
+  border: 1px solid #ececf5;
+  border-radius: 10px;
+  min-height: 90px;
+  padding: 6px;
+  background: #fbfbff;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.day.muted {
+  background: #f8f8f8;
+  color: #999;
+}
+
+.day-number {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.events {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.event {
+  background: #f0f1ff;
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-size: 11px;
+  border: 1px solid #e1e3fa;
+}
+
+.event.marche_conclu {
+  background: #fff4e5;
+  border-color: #f6d7a8;
+}
+
+.event.fini {
+  background: #e7f7ee;
+  border-color: #c7ead8;
+}
+
+.event.perdue {
+  background: #f5f5f5;
+  border-color: #e0e0e0;
+}
+
+.event.devis_envoye {
+  background: #fdebf7;
+  border-color: #f3c9e7;
+}
+
+.event.devis_non_envoye {
+  background: #eef2f7;
+}
+
+.event-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.event-price {
+  color: #555;
+}
+
+

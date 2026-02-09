@@ -1,0 +1,120 @@
+{
+  "meta": {
+    "company": "Melodix",
+    "type": "inventaire_materiel",
+    "currency": "EUR",
+    "source": "captures_notions_2026-01-07",
+    "notes": [
+      "Extraction fidèle des lignes visibles sur les captures.",
+      "Quand une info n’est pas lisible/présente (date, facture, set…), valeur = \"non_precise\".",
+      "Le champ \"etat\" vient de la colonne 'etat' (quand visible)."
+    ]
+  },
+  "items": [
+    {
+      "product": "Micro",
+      "name": "Mac Mah - UHF 200 M",
+      "vendor": "Sonovente",
+      "tags": ["Sono"],
+      "etat": "OK",
+      "qty": 1,
+      "purchase_price_eur": 179.0,
+      "date": "2025-05-31",
+      "invoice_ref": "non_precise",
+      "sets": ["Set2"],
+      "photos": true
+    },
+    {
+      "product": "Casque DJ",
+      "name": "Shure - SRH440 A",
+      "vendor": "Sonovente",
+      "tags": ["Other"],
+      "etat": "OK",
+      "qty": 1,
+      "purchase_price_eur": 98.0,
+      "date": "2025-05-30",
+      "invoice_ref": "non_precise",
+      "sets": ["Set1", "Set2"],
+      "photos": true
+    },
+    {
+      "product": "Micro fil main",
+      "name": "Shure - SM 58",
+      "vendor": "Sonovente",
+      "tags": ["Other"],
+      "etat": "OK",
+      "qty": 1,
+      "purchase_price_eur": 109.0,
+      "date": "2025-05-30",
+      "invoice_ref": "non_precise",
+      "sets": ["Set1", "Set2"],
+      "photos": true
+    },
+    {
+      "product": "DMX sans fil",
+      "name": "Chauvet - D-Fi XLR Pack",
+      "vendor": "Sonovente",
+      "tags": ["Light"],
+      "etat": "OK",
+      "qty": 1,
+      "purchase_price_eur": "non_precise",
+      "date": "2025-05-30",
+      "invoice_ref": "non_precise",
+      "sets": ["Set1"],
+      "photos": true
+    },
+    {
+      "product": "Récepteur dmx sans fil",
+      "name": "Chauvet - D-Fi XLR RX",
+      "vendor": "Sonovente",
+      "tags": ["Light"],
+      "etat": "OK",
+      "qty": 1,
+      "purchase_price_eur": "non_precise",
+      "date": "2025-05-30",
+      "invoice_ref": "non_precise",
+      "sets": ["Set1"],
+      "photos": true
+    },
+    {
+      "product": "Enceinte",
+      "name": "Elokance - e15A",
+      "vendor": "Le Bon Coin",
+      "tags": ["Sono"],
+      "etat": "OK",
+      "qty": 2,
+      "purchase_price_eur": 500.0,
+      "date": "2025-01-16",
+      "invoice_ref": "non_precise",
+      "sets": ["Set2"],
+      "photos": true
+    },
+    {
+      "product": "Barre laser",
+      "name": "Evolite - LASER Bar 8X500RED",
+      "vendor": "Sonovente",
+      "tags": ["Light"],
+      "etat": "OK",
+      "qty": 2,
+      "purchase_price_eur": 998.0,
+      "date": "2024-09-10",
+      "invoice_ref": "non_precise",
+      "sets": ["non_precise"],
+      "photos": true
+    },
+    {
+      "product": "Lyre spot",
+      "name": "Evolite - Evo Spot 120",
+      "vendor": "Le Bon Coin",
+      "tags": ["Light"],
+      "etat": "OK",
+      "qty": 4,
+      "purchase_price_eur": 1500.0,
+      "date": "2024-06-08",
+      "invoice_ref": "non_precise",
+      "sets": ["non_precise"],
+      "photos": true
+    }
+  ]
+}
+

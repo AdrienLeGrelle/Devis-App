@@ -1,0 +1,120 @@
+.facturant-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.facturant-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #555;
+}
+
+.facturant-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.facturant-option {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.facturant-btn {
+  background: #f0f1ff;
+  border: 1px solid #d0d4ff;
+  color: #5a67d8;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.facturant-btn:hover {
+  background: #e8ecf7;
+}
+
+.facturant-btn.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.facturant-config-btn {
+  background: #f0f1ff;
+  border: 1px solid #d0d4ff;
+  color: #5a67d8;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.facturant-config-btn:hover {
+  background: #e8ecf7;
+}
+
+.facturant-config-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.facturant-config-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.facturant-config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7f1;
+}
+
+.facturant-config-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.facturant-config-modal .btn-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #666;
+  padding: 4px;
+}
+
+.facturant-config-modal .btn-close:hover {
+  color: #333;
+}
+
+.facturant-config-body {
+  padding: 20px;
+}
+
+.facturant-config-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid #e5e7f1;
+}

@@ -1,0 +1,120 @@
+.comptabilite {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.comptabilite-header h2 {
+  margin: 0 0 8px 0;
+  font-size: 22px;
+  color: #333;
+}
+
+.comptabilite-subtitle {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.comptabilite-global {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.global-card {
+  flex: 1;
+  min-width: 160px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.global-card.highlight {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+}
+
+.global-label {
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.global-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+}
+
+.global-card.highlight .global-value {
+  color: #667eea;
+}
+
+.comptabilite-table-wrap {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.comptabilite-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.comptabilite-table th,
+.comptabilite-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.comptabilite-table th {
+  background: #f5f5f7;
+  font-weight: 600;
+  color: #444;
+}
+
+.comptabilite-table th.num,
+.comptabilite-table td.num {
+  text-align: right;
+}
+
+.comptabilite-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.comptabilite-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.comptabilite-table .resp-name {
+  font-weight: 500;
+}
+
+.comptabilite-table .pot-cell {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.comptabilite-rule {
+  font-size: 13px;
+  color: #666;
+  padding: 12px 16px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.comptabilite-rule strong {
+  color: #333;
+}

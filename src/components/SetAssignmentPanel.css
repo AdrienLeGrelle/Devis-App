@@ -1,0 +1,255 @@
+.set-assignment-panel {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) minmax(200px, 1.5fr);
+  gap: 12px;
+}
+
+.set-assignment-panel.compact {
+  grid-template-columns: 1fr;
+}
+
+.set-assignment-panel.compact .assignment-sets {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.assignment-pool {
+  border: 1px solid #ececf5;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+  min-height: 200px;
+}
+
+.pool-header h4 {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+}
+
+.pool-header p {
+  margin: 0 0 8px 0;
+  font-size: 11px;
+  color: #666;
+}
+
+.pool-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.pool-items-by-category {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-height: 320px;
+}
+
+.pool-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pool-column-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #555;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e5e7f1;
+}
+
+.pool-column-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.assignment-pool .item-row {
+  border: 1px solid #ececf5;
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fafbff;
+  cursor: grab;
+}
+
+.assignment-pool .item-row.has-defect {
+  border-color: #feb2b2;
+  background: #fff5f5;
+}
+
+.assignment-pool .item-row.assigned {
+  opacity: 0.85;
+  cursor: default;
+}
+
+.assignment-pool .item-row.assigned .assigned-cross {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #e53e3e;
+  font-size: 22px;
+  font-weight: bold;
+  margin-right: 8px;
+  line-height: 1;
+}
+
+.assignment-pool .item-name {
+  font-weight: 600;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.assignment-pool .item-meta {
+  font-size: 11px;
+  color: #555;
+}
+
+.assignment-pool .btn-trash-item {
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  font-size: 11px;
+  opacity: 0.5;
+}
+
+.assignment-pool .btn-trash-item:hover {
+  opacity: 1;
+}
+
+.pool-empty {
+  color: #888;
+  font-size: 12px;
+  padding: 16px;
+  margin: 0;
+}
+
+.assignment-sets {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.assignment-sets .set-card {
+  border: 1px solid #ececf5;
+  border-radius: 10px;
+  padding: 8px;
+  background: #fff;
+}
+
+.assignment-sets .set-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.assignment-sets .set-header-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.set-formule-select {
+  padding: 4px 8px;
+  font-size: 11px;
+  border: 1px solid #dfe3f0;
+  border-radius: 6px;
+  background: #fff;
+  width: 100%;
+  max-width: 160px;
+}
+
+.assignment-sets .set-header h4 {
+  margin: 0 0 6px 0;
+  font-size: 13px;
+}
+
+.set-name-input {
+  flex: 1;
+  min-width: 80px;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid #dfe3f0;
+  border-radius: 6px;
+}
+
+.set-name-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.assignment-sets .set-zone {
+  margin-bottom: 6px;
+}
+
+.assignment-sets .set-zone:last-child {
+  margin-bottom: 0;
+}
+
+.assignment-sets .zone-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #555;
+}
+
+.assignment-sets .zone-drop {
+  min-height: 36px;
+  border-radius: 8px;
+  border: 1px dashed #d0d4ff;
+  background: #f8f9ff;
+  padding: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.assignment-sets .zone-empty {
+  font-size: 11px;
+  color: #999;
+}
+
+.assignment-sets .chip {
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #dfe3f0;
+  font-size: 10px;
+  cursor: grab;
+}
+
+.defect-indicator {
+  color: #e53e3e;
+  font-size: 10px;
+  margin-right: 4px;
+  display: inline-block;
+}
+
+.item-row.has-defect .defect-indicator,
+.chip.has-defect .defect-indicator {
+  color: #e53e3e;
+}
+
+.chip.has-defect {
+  border-color: #feb2b2;
+  background: #fff5f5;
+}
+
+@media (max-width: 700px) {
+  .set-assignment-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .pool-items-by-category {
+    grid-template-columns: 1fr;
+  }
+}
