@@ -3,10 +3,10 @@ import 'jspdf-autotable';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import { getItemsBySet, calculerTotalDevis } from './devisUtils';
-import { TARIF_KM } from '../config/melodix';
+import { formatFooterEntreprise } from './formatFooterEntreprise';
 
 class PDFGenerator {
-  static generate(devisData, inventory = {}) {
+  static generate(devisData, inventory = {}, pricePerKm = 0.60) {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -16,7 +16,7 @@ class PDFGenerator {
     const primaryColor = [102, 126, 234];
     const gray = [100, 100, 100];
 
-    // En-tête
+    // En-tête : uniquement "DEVIS" en bleu
     doc.setFillColor(...primaryColor);
     doc.rect(0, 0, pageWidth, 45, 'F');
     doc.setTextColor(255, 255, 255);
@@ -24,75 +24,117 @@ class PDFGenerator {
     doc.setFont('helvetica', 'bold');
     doc.text('DEVIS', margin, 28);
 
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`N° : ${devisData.numero || '—'}`, pageWidth - margin, 18, { align: 'right' });
-    const dateDevis = devisData.date ? format(new Date(devisData.date), 'dd/MM/yyyy', { locale: fr }) : '';
-    doc.text(`Date : ${dateDevis}`, pageWidth - margin, 25, { align: 'right' });
-    const dateValidite =
-      devisData.date && devisData.validite
-        ? format(
-            new Date(new Date(devisData.date).getTime() + devisData.validite * 24 * 60 * 60 * 1000),
-            'dd/MM/yyyy',
-            { locale: fr }
-          )
-        : '';
-    doc.text(`Valide jusqu'au : ${dateValidite}`, pageWidth - margin, 32, { align: 'right' });
-
     y = 55;
 
-    // Entreprise
-    const ent = devisData.entreprise || {};
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(ent.nom || 'Votre Entreprise', margin, y);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    y += 6;
-    doc.text(`${ent.adresse || ''}`, margin, y);
-    y += 5;
-    doc.text(`${ent.codePostal || ''} ${ent.ville || ''}`, margin, y);
-    y += 5;
-    if (ent.telephone) doc.text(`Tél : ${ent.telephone}`, margin, y);
-    y += 5;
-    if (ent.email) doc.text(`Email : ${ent.email}`, margin, y);
-    y += 5;
-    if (ent.siret) doc.text(`SIRET : ${ent.siret}`, margin, y);
-    if (ent.codeAPE) doc.text(`Code APE : ${ent.codeAPE}`, margin, y + 5);
-    y += 15;
-
-    // Client
+    // Deux cards côte à côte : Client (gauche) et Devis Info (droite)
     const client = devisData.client || {};
+    const cardWidth = (pageWidth - 2 * margin - 24) / 2; // 24px de gap
+    const leftX = margin;
+    const rightX = margin + cardWidth + 24;
+    let yLeft = y;
+    let yRight = y;
+    
+    doc.setTextColor(0, 0, 0);
+    
+    // Card Client (gauche)
     doc.setFont('helvetica', 'bold');
-    doc.text('Facturé à :', margin, y);
-    y += 6;
+    doc.setFontSize(10);
+    doc.text('Facturé à :', leftX, yLeft);
+    yLeft += 6;
     doc.setFont('helvetica', 'normal');
-    doc.text(client.nom || 'Nom du client', margin, y);
-    y += 5;
-    doc.text(`${client.adresse || ''}`, margin, y);
-    y += 5;
-    doc.text(`${client.codePostal || ''} ${client.ville || ''}`, margin, y);
+    const nomDisplay = client.nom || 'Nom du client';
+    if (client.prenom) {
+      doc.text(client.prenom + ' ', leftX, yLeft);
+      doc.setFont('helvetica', 'bold');
+      doc.text(nomDisplay, leftX + doc.getTextWidth(client.prenom + ' '), yLeft);
+      doc.setFont('helvetica', 'normal');
+    } else {
+      doc.setFont('helvetica', 'bold');
+      doc.text(nomDisplay, leftX, yLeft);
+      doc.setFont('helvetica', 'normal');
+    }
+    yLeft += 5;
+    if (client.adresse) {
+      doc.text(client.adresse, leftX, yLeft);
+      yLeft += 5;
+    }
+    if (client.codePostal || client.ville) {
+      doc.text(`${client.codePostal || ''} ${client.ville || ''}`.trim(), leftX, yLeft);
+      yLeft += 5;
+    }
     if (client.telephone) {
-      y += 5;
-      doc.text(`Tél : ${client.telephone}`, margin, y);
+      doc.text(`Tél : ${client.telephone}`, leftX, yLeft);
+      yLeft += 5;
     }
     if (client.email) {
-      y += 5;
-      doc.text(`Email : ${client.email}`, margin, y);
+      doc.text(`Email : ${client.email}`, leftX, yLeft);
+      yLeft += 5;
     }
-    y += 15;
+    
+    // Card Devis Info (droite)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Devis', rightX, yRight);
+    yRight += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    if (devisData.numero) {
+      doc.text(`N° : ${devisData.numero}`, rightX, yRight);
+      yRight += 5;
+    }
+    if (devisData.date) {
+      const dateDevis = format(new Date(devisData.date), 'dd/MM/yyyy', { locale: fr });
+      doc.text(`Date : ${dateDevis}`, rightX, yRight);
+      yRight += 5;
+    }
+    if (devisData.validite) {
+      const validiteJours = Number(devisData.validite);
+      let validiteStr = `Validité : ${validiteJours} jour${validiteJours > 1 ? 's' : ''}`;
+      if (devisData.date) {
+        const dateFin = format(
+          new Date(new Date(devisData.date).getTime() + validiteJours * 24 * 60 * 60 * 1000),
+          'dd/MM/yyyy',
+          { locale: fr }
+        );
+        validiteStr += ` (→ ${dateFin})`;
+      }
+      doc.text(validiteStr, rightX, yRight);
+      yRight += 5;
+    }
+    if (devisData.dateDebutPrestation || devisData.horairePrestation || devisData.lieuPrestation) {
+      const prestaParts = [];
+      if (devisData.dateDebutPrestation) {
+        prestaParts.push(format(new Date(devisData.dateDebutPrestation), 'dd/MM/yyyy', { locale: fr }));
+      }
+      if (devisData.horairePrestation) prestaParts.push(devisData.horairePrestation);
+      if (devisData.lieuPrestation) prestaParts.push(devisData.lieuPrestation);
+      if (prestaParts.length > 0) {
+        doc.text(`Prestation : ${prestaParts.join(' • ')}`, rightX, yRight);
+        yRight += 5;
+      }
+    }
+    
+    // Prendre le max des deux colonnes pour continuer
+    y = Math.max(yLeft, yRight) + 10;
 
     // Tableau
     const formule = devisData.formuleChoisie;
     const options = devisData.optionsChoisies || [];
     const km = Number(devisData.kmDeplacement) || 0;
-    const montantTransport = km * TARIF_KM;
+    const montantTransport = km * pricePerKm;
 
     const tableData = [];
+    const breakdownRowIndices = []; // Track breakdown row indices for special styling
     if (formule) {
       const ht = formule.prixTTC / 1.2;
       tableData.push([formule.label, '1', `${ht.toFixed(2)} €`, '20 %', `${formule.prixTTC.toFixed(2)} €`]);
+      // Add breakdown rows if present
+      if (formule.breakdown?.length > 0) {
+        formule.breakdown.forEach((bd) => {
+          breakdownRowIndices.push(tableData.length);
+          tableData.push([`    ${bd.label}`, '', '', '', `${bd.amountTTC.toFixed(2)} €`]);
+        });
+      }
     }
     options.forEach((opt) => {
       const qty = Number(opt.quantite) || 1;
@@ -108,7 +150,7 @@ class PDFGenerator {
     });
     if (km > 0) {
       tableData.push([
-        `Transport (${km} km × ${TARIF_KM} €/km)`,
+        `Transport (${km} km × ${pricePerKm.toFixed(2)} €/km)`,
         '1',
         `${montantTransport.toFixed(2)} €`,
         '0 %',
@@ -137,29 +179,23 @@ class PDFGenerator {
           4: { halign: 'right' },
         },
         margin: { left: margin, right: margin },
+        didParseCell: (data) => {
+          // Style breakdown rows
+          if (data.section === 'body' && breakdownRowIndices.includes(data.row.index)) {
+            data.cell.styles.fontSize = 8;
+            data.cell.styles.textColor = [100, 100, 100];
+            data.cell.styles.fontStyle = 'italic';
+            data.cell.styles.fillColor = [250, 251, 255];
+          }
+        },
       });
       y = doc.lastAutoTable.finalY + 10;
     }
 
-    // Détail matériel
-    const datePresta = devisData.dateDebutPrestation || devisData.date;
-    const detailMateriel = formule?.setId ? getItemsBySet(inventory, formule.setId, datePresta) : [];
-    if (detailMateriel.length > 0) {
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Détail du matériel inclus (Set ${formule.setId})`, margin, y);
-      y += 6;
-      doc.setFont('helvetica', 'normal');
-      detailMateriel.forEach((item) => {
-        const qty = item.qty > 1 ? `${item.qty} × ` : '';
-        doc.text(`• ${qty}${item.name}`, margin + 2, y);
-        y += 5;
-      });
-      y += 8;
-    }
+    // Détail matériel : masqué (données conservées pour inventaire / préparation)
 
     // Total TTC
-    const totalTTC = calculerTotalDevis(devisData);
+    const totalTTC = calculerTotalDevis(devisData, pricePerKm);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.text('Total TTC :', pageWidth - margin - 50, y);
@@ -189,10 +225,15 @@ class PDFGenerator {
       }
     }
 
-    // Pied de page
-    doc.setFontSize(9);
+    // Pied de page : ligne entreprise construite automatiquement
+    const footerLine = formatFooterEntreprise(devisData.entreprise || {});
+    doc.setFontSize(8);
     doc.setTextColor(...gray);
-    doc.text('Merci de votre confiance !', pageWidth / 2, pageHeight - 15, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    if (footerLine) {
+      doc.text(footerLine, pageWidth / 2, pageHeight - 15, { align: 'center' });
+    }
+    doc.text('Merci de votre confiance !', pageWidth / 2, pageHeight - 10, { align: 'center' });
 
     const pdfOutput = doc.output('arraybuffer');
     return new Blob([pdfOutput], { type: 'application/pdf' });

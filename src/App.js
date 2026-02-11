@@ -11,6 +11,7 @@ import inventorySeed from './data/inventory.json';
 import { SETS, DEFAULT_FORMULE_PRESETS } from './utils/inventoryAssignments';
 import { melodixEntreprise } from './config/melodix';
 import { useUndoRedo } from './hooks/useUndoRedo';
+import { migrateMarcheConcluToFini } from './utils/prestationsUtils';
 
 function App() {
   const [devisData, setDevisData] = useState(() => {
@@ -40,6 +41,7 @@ function App() {
       tva: ''
     },
     client: {
+      prenom: '',
       nom: '',
       adresse: '',
       codePostal: '',
@@ -54,6 +56,144 @@ function App() {
 
   const [activeTab, setActiveTab] = useState('form');
   const [facturant, setFacturant] = useState('adrien');
+
+  // Gestion des formules (CRUD + persistance localStorage)
+  const DEFAULT_FORMULAS = [
+    {
+      id: 'classique',
+      label: 'Formule Classique',
+      prixTTC: 1200,
+      description: '',
+      isActive: true,
+      breakdown: [
+        { id: 'dj-1', label: 'Prestation DJ', amountTTC: 600 },
+        { id: 'materiel-1', label: 'Matériel (son + lumière)', amountTTC: 600 },
+      ],
+    },
+    {
+      id: 'premium',
+      label: 'Formule Premium',
+      prixTTC: 1450,
+      description: '',
+      isActive: true,
+      breakdown: [
+        { id: 'dj-2', label: 'Prestation DJ', amountTTC: 750 },
+        { id: 'materiel-2', label: 'Matériel (son + lumière)', amountTTC: 700 },
+      ],
+    },
+    {
+      id: 'excellence',
+      label: 'Formule Excellence',
+      prixTTC: 1750,
+      description: '',
+      isActive: true,
+      breakdown: [
+        { id: 'dj-3', label: 'Prestation DJ', amountTTC: 900 },
+        { id: 'materiel-3', label: 'Matériel (son + lumière)', amountTTC: 850 },
+      ],
+    },
+  ];
+  const FORMULAS_STORAGE_KEY = 'melodix_formulas';
+
+  const [formulas, setFormulas] = useState(() => {
+    try {
+      const raw = localStorage.getItem(FORMULAS_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_FORMULAS;
+    } catch (e) {
+      return DEFAULT_FORMULAS;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(FORMULAS_STORAGE_KEY, JSON.stringify(formulas));
+  }, [formulas]);
+
+  const handleSaveFormula = useCallback((formula) => {
+    setFormulas((prev) => {
+      const idx = prev.findIndex((f) => f.id === formula.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = formula;
+        return next;
+      }
+      return [...prev, formula];
+    });
+  }, []);
+
+  const handleDeleteFormula = useCallback((formulaId) => {
+    // Note: on ne vérifie pas si la formule est utilisée car les devis stockent un snapshot
+    setFormulas((prev) => prev.filter((f) => f.id !== formulaId));
+    return { success: true };
+  }, []);
+
+  // Gestion des options (CRUD + persistance localStorage)
+  const DEFAULT_OPTIONS = [
+    { id: 'photobooth-400', label: 'PHOTOBOOTH 400', prixTTC: 580, category: '', isActive: true },
+    { id: 'photobooth-800', label: 'PHOTOBOOTH 800', prixTTC: 650, category: '', isActive: true },
+    { id: 'photobooth-no-limit', label: 'PHOTOBOOTH NO LIMIT', prixTTC: 750, category: '', isActive: true },
+    { id: 'pars-led-batterie', label: '6 PARS LED BATTERIE', prixTTC: 80, category: 'Éclairage', isActive: true },
+    { id: 'bar-lasers-rouge', label: 'BAR LASERS ROUGE', prixTTC: 120, category: 'Éclairage', isActive: true },
+    { id: 'stroboscope', label: 'STROBOSCOPE', prixTTC: 80, category: 'Éclairage', isActive: true },
+  ];
+  const OPTIONS_STORAGE_KEY = 'melodix_options';
+
+  const [options, setOptions] = useState(() => {
+    try {
+      const raw = localStorage.getItem(OPTIONS_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_OPTIONS;
+    } catch (e) {
+      return DEFAULT_OPTIONS;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(OPTIONS_STORAGE_KEY, JSON.stringify(options));
+  }, [options]);
+
+  const handleSaveOption = useCallback((option) => {
+    setOptions((prev) => {
+      const idx = prev.findIndex((o) => o.id === option.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = option;
+        return next;
+      }
+      return [...prev, option];
+    });
+  }, []);
+
+  const handleDeleteOption = useCallback((optionId) => {
+    setOptions((prev) => prev.filter((o) => o.id !== optionId));
+    return { success: true };
+  }, []);
+
+  // Gestion du prix au km (persistance localStorage)
+  const DEFAULT_PRICE_PER_KM = 0.60;
+  const PRICE_PER_KM_STORAGE_KEY = 'melodix_price_per_km';
+
+  const [pricePerKm, setPricePerKm] = useState(() => {
+    try {
+      const raw = localStorage.getItem(PRICE_PER_KM_STORAGE_KEY);
+      const parsed = raw ? parseFloat(raw) : null;
+      return parsed != null && !isNaN(parsed) && parsed >= 0 ? parsed : DEFAULT_PRICE_PER_KM;
+    } catch (e) {
+      return DEFAULT_PRICE_PER_KM;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(PRICE_PER_KM_STORAGE_KEY, pricePerKm.toString());
+  }, [pricePerKm]);
+
+  const handleSavePricePerKm = useCallback((value) => {
+    const parsed = parseFloat(value);
+    if (!isNaN(parsed) && parsed >= 0) {
+      setPricePerKm(Math.round(parsed * 100) / 100); // arrondi à 2 décimales
+    }
+  }, []);
+
   const activeUndoManagerRef = useRef(null);
   const [activeUndoState, setActiveUndoState] = useState({ canUndo: false, canRedo: false });
   const [inventory, setInventory] = useState({ items: [], sets: [] });
@@ -509,7 +649,22 @@ function App() {
     prepChecklist: p.prepChecklist ?? [],
   }));
 
-  const prestationsUndo = useUndoRedo(defaultPrestations, 50);
+  const initialPrestations = React.useMemo(() => {
+    try {
+      const raw = localStorage.getItem('prestations');
+      const parsed = raw ? JSON.parse(raw) : null;
+      const base =
+        parsed && Array.isArray(parsed) && parsed.length > 0
+          ? parsed.map((p) => ({ ...p, setId: p.setId ?? null, prepChecklist: p.prepChecklist ?? [] }))
+          : defaultPrestations;
+      const { prestations: migrated } = migrateMarcheConcluToFini(base);
+      return migrated;
+    } catch (e) {
+      return defaultPrestations;
+    }
+  }, []);
+
+  const prestationsUndo = useUndoRedo(initialPrestations, 50);
   const prestations = prestationsUndo.present;
 
   const handlePrestationsChange = useCallback(
@@ -533,6 +688,20 @@ function App() {
       localStorage.setItem('prestations', JSON.stringify(prestations));
     }
   }, [prestations]);
+
+  // Vérification périodique : Marché conclu → Fini si date passée (toutes les 5 min)
+  const prestationsRef = useRef(prestations);
+  prestationsRef.current = prestations;
+  useEffect(() => {
+    const runMigration = () => {
+      const { prestations: migrated, changed } = migrateMarcheConcluToFini(prestationsRef.current);
+      if (changed) {
+        handlePrestationsChange(migrated);
+      }
+    };
+    const interval = setInterval(runMigration, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [handlePrestationsChange]);
 
   // Enregistrer l'undo manager actif selon l'onglet
   useEffect(() => {
@@ -665,7 +834,7 @@ function App() {
       date: devisData.dateDebutPrestation || devisData.date || '',
       statut: 'devis_non_envoye',
       note: noteParts.join(' • '),
-      setId: formule?.setId || null,
+      setId: null,
       prepChecklist: [],
       devisRef: devisData.numero || '',
       formuleChoix: formule?.label || '',
@@ -679,7 +848,7 @@ function App() {
 
   const generatePDF = async () => {
     try {
-      const pdfBlob = PDFGenerator.generate(devisData, inventory);
+      const pdfBlob = PDFGenerator.generate(devisData, inventory, pricePerKm);
       
       if (window.electronAPI) {
         const filename = `Devis_${devisData.numero || 'Nouveau'}_${devisData.date}.pdf`;
@@ -785,12 +954,21 @@ function App() {
             onEntrepriseFill={(entreprise) =>
               setDevisData((prev) => ({ ...prev, entreprise: { ...prev.entreprise, ...entreprise } }))
             }
+            formulas={formulas}
+            onSaveFormula={handleSaveFormula}
+            onDeleteFormula={handleDeleteFormula}
+            options={options}
+            onSaveOption={handleSaveOption}
+            onDeleteOption={handleDeleteOption}
+            pricePerKm={pricePerKm}
+            onSavePricePerKm={handleSavePricePerKm}
           />
         ) : activeTab === 'preview' ? (
           <DevisPreview
             devisData={devisData}
             inventory={inventory}
             registerUndoManager={registerUndoManager}
+            pricePerKm={pricePerKm}
           />
         ) : activeTab === 'prestations' ? (
           <PrestationsView

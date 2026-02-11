@@ -6,7 +6,7 @@ import { PAGE_A4, saveLayout, getDefaultLayout } from '../utils/quoteLayout';
 
 const GRID = 8;
 
-function QuoteCanvasEditor({ layout, onLayoutChange, devisData, inventory }) {
+function QuoteCanvasEditor({ layout, onLayoutChange, devisData, inventory, pricePerKm = 0.60 }) {
   const [editMode, setEditMode] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [locked, setLocked] = useState(false);
@@ -126,7 +126,7 @@ function QuoteCanvasEditor({ layout, onLayoutChange, devisData, inventory }) {
       return <img src={item.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />;
     }
     if (item.type === 'field') {
-      const value = resolveFieldValue(item.fieldKey, devisData, inventory);
+      const value = resolveFieldValue(item.fieldKey, devisData, inventory, pricePerKm);
       const style = item.style || {};
       const baseStyle = {
         fontSize: style.fontSize || 12,

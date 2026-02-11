@@ -3,15 +3,26 @@ import React from 'react';
 function ClientSection({ client, onChange }) {
   return (
     <div>
-      <div className="form-group">
-        <label>Nom / Raison sociale *</label>
-        <input
-          type="text"
-          value={client.nom}
-          onChange={(e) => onChange('nom', e.target.value)}
-          placeholder="Client SARL"
-          required
-        />
+      <div className="form-row">
+        <div className="form-group">
+          <label>Prénom</label>
+          <input
+            type="text"
+            value={client.prenom}
+            onChange={(e) => onChange('prenom', e.target.value)}
+            placeholder="Jean"
+          />
+        </div>
+        <div className="form-group">
+          <label>Nom / Raison sociale *</label>
+          <input
+            type="text"
+            value={client.nom}
+            onChange={(e) => onChange('nom', e.target.value)}
+            placeholder="Client SARL"
+            required
+          />
+        </div>
       </div>
       <div className="form-group">
         <label>Adresse *</label>

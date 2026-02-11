@@ -13,11 +13,11 @@ export const melodixEntreprise = {
 // Tarif déplacement (€/km à partir de Versailles)
 export const TARIF_KM = 0.6;
 
-// Formules principales (liées à un set pour le détail matériel)
+// Formules principales (prix uniquement, le matériel se configure dans Matériel / Préparation)
 export const melodixFormules = [
-  { id: 'classique', label: 'Formule Classique', prixTTC: 1200, setId: 'set1' },
-  { id: 'premium', label: 'Formule Premium', prixTTC: 1450, setId: 'set1' },
-  { id: 'excellence', label: 'Formule Excellence', prixTTC: 1750, setId: 'set2' },
+  { id: 'classique', label: 'Formule Classique', prixTTC: 1200 },
+  { id: 'premium', label: 'Formule Premium', prixTTC: 1450 },
+  { id: 'excellence', label: 'Formule Excellence', prixTTC: 1750 },
 ];
 
 // Options additionnelles (prix et quantité modifiables dans le devis)

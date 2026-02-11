@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import './PrestationsBoard.css';
 import SetAssignmentPanel from './SetAssignmentPanel';
 import { getAssignmentsForDate, getSetNamesForDate, SET_ZONES } from '../utils/inventoryAssignments';
+import { sortPrestationsByDate, formatDateFR } from '../utils/prestationsUtils';
 
 export const columns = [
   { id: 'devis_non_envoye', title: 'Devis non envoyé', color: '#c8ccd6' },
@@ -37,10 +38,11 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
 
   const grouped = useMemo(
     () =>
-      columns.map((col) => ({
-        ...col,
-        items: prestations.filter((p) => p.statut === col.id),
-      })),
+      columns.map((col) => {
+        const filtered = prestations.filter((p) => p.statut === col.id);
+        const sortOrder = col.id === 'marche_conclu' || col.id === 'devis_envoye' ? 'asc' : 'desc';
+        return { ...col, items: sortPrestationsByDate(filtered, sortOrder) };
+      }),
     [prestations]
   );
 
@@ -177,7 +179,7 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
                   {item.setId && <span className="tag assign">Set: {item.setId}</span>}
                 </div>
                 <div className="card-footer">
-                  <span className="date">{item.date || 'Date à planifier'}</span>
+                  <span className="date">{formatDateFR(item.date) || 'Date à planifier'}</span>
                   <span className="price">
                     {(item.montant || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
                   </span>
@@ -412,7 +414,7 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
             ) : (
             <div className="editor-materiel-tab">
               <p className="materiel-tab-info">
-                Configuration des sets pour le {formData.date || '—'} (date de la prestation).
+                Configuration des sets pour le {formatDateFR(formData.date) || '—'} (date de la prestation).
                 Les modifications sont enregistrées dans l'inventaire.
               </p>
               {formData.date ? (

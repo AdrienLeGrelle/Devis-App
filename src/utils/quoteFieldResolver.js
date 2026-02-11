@@ -1,9 +1,8 @@
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import { getItemsBySet, calculerTotalDevis } from './devisUtils';
-import { TARIF_KM } from '../config/melodix';
 
-function buildArticlesRows(formule, options, km, montantTransport) {
+function buildArticlesRows(formule, options, km, montantTransport, pricePerKm) {
   const rows = [];
   if (formule) {
     rows.push({ designation: formule.label, qty: 1, pu: (formule.prixTTC / 1.2).toFixed(2), tva: '20 %', total: formule.prixTTC.toFixed(2) });
@@ -15,22 +14,26 @@ function buildArticlesRows(formule, options, km, montantTransport) {
     rows.push({ designation: `Option : ${opt.label}`, qty, pu: (htOpt / qty).toFixed(2), tva: '20 %', total: totalOpt.toFixed(2) });
   });
   if (km > 0) {
-    rows.push({ designation: `Transport (${km} km × ${TARIF_KM} €/km)`, qty: 1, pu: montantTransport.toFixed(2), tva: '0 %', total: montantTransport.toFixed(2) });
+    rows.push({ designation: `Transport (${km} km × ${pricePerKm.toFixed(2)} €/km)`, qty: 1, pu: montantTransport.toFixed(2), tva: '0 %', total: montantTransport.toFixed(2) });
   }
   return rows;
 }
 
 /**
  * Résout la valeur d'un champ à partir de devisData et inventory
+ * @param {string} fieldKey - clé du champ
+ * @param {Object} devisData - données du devis
+ * @param {Object} inventory - inventaire
+ * @param {number} pricePerKm - prix au km (default 0.60)
  */
-export function resolveFieldValue(fieldKey, devisData, inventory) {
+export function resolveFieldValue(fieldKey, devisData, inventory, pricePerKm = 0.60) {
   const ent = devisData?.entreprise || {};
   const client = devisData?.client || {};
   const formule = devisData?.formuleChoisie;
   const options = devisData?.optionsChoisies || [];
   const km = Number(devisData?.kmDeplacement) || 0;
-  const montantTransport = km * TARIF_KM;
-  const totalTTC = calculerTotalDevis(devisData || {});
+  const montantTransport = km * pricePerKm;
+  const totalTTC = calculerTotalDevis(devisData || {}, pricePerKm);
 
   const dateDevis = devisData?.date ? format(new Date(devisData.date), 'dd/MM/yyyy', { locale: fr }) : '';
   const dateValidite =
@@ -70,7 +73,9 @@ export function resolveFieldValue(fieldKey, devisData, inventory) {
     case 'client':
       return [
         `Facturé à :`,
-        client.nom ? `\n${client.nom}` : '',
+        (client.prenom || client.nom)
+          ? `\n${[client.prenom, client.nom].filter(Boolean).join(' ')}`
+          : '',
         client.adresse,
         `${client.codePostal || ''} ${client.ville || ''}`.trim(),
         client.telephone && `Tél : ${client.telephone}`,
@@ -79,7 +84,7 @@ export function resolveFieldValue(fieldKey, devisData, inventory) {
         .filter(Boolean)
         .join('\n');
     case 'articlesTable': {
-      const rows = buildArticlesRows(formule, options, km, montantTransport);
+      const rows = buildArticlesRows(formule, options, km, montantTransport, pricePerKm);
       return rows.length ? { type: 'table', rows } : '—';
     }
     case 'detailMateriel':

@@ -1,5 +1,3 @@
-import { TARIF_KM } from '../config/melodix';
-
 /**
  * Retourne les items d'un set à partir de l'inventaire pour une date donnée.
  * Utilise assignmentsByDate si une date est fournie, sinon assigned_sets (legacy).
@@ -21,8 +19,10 @@ export function getItemsBySet(inventory, setId, date) {
 
 /**
  * Calcule le total TTC du devis : formule + options + transport
+ * @param {Object} devisData - données du devis
+ * @param {number} pricePerKm - prix au km (default 0.60)
  */
-export function calculerTotalDevis(devisData) {
+export function calculerTotalDevis(devisData, pricePerKm = 0.60) {
   let total = 0;
   if (devisData.formuleChoisie?.prixTTC) {
     total += devisData.formuleChoisie.prixTTC;
@@ -32,6 +32,6 @@ export function calculerTotalDevis(devisData) {
     total += (opt.prixTTC || 0) * qty;
   });
   const km = Number(devisData.kmDeplacement) || 0;
-  total += km * TARIF_KM;
+  total += km * pricePerKm;
   return total;
 }

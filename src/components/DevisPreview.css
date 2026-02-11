@@ -70,7 +70,17 @@
   position: absolute;
   inset: 0;
   z-index: 5;
-  pointer-events: none;
+  /* Overlay interactive utilisé pour le drag des blocs */
+  pointer-events: auto;
+}
+
+.draggable-block-wrapper {
+  z-index: 10;
+  cursor: grab;
+}
+
+.draggable-block-wrapper:active {
+  cursor: grabbing;
 }
 
 .layout-overlay-frame {
@@ -206,7 +216,7 @@
 
 .devis-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   margin-bottom: 0;
   padding-bottom: 20px;
 }
@@ -261,8 +271,42 @@
   color: #666;
 }
 
-.client-section {
+.top-row {
+  display: flex;
+  align-items: stretch;
+  gap: 24px;
   margin-bottom: 30px;
+}
+
+.client-section {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: 360px;
+}
+
+.devis-info-section {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: 360px;
+}
+
+.devis-info-section h3 {
+  font-size: 14px;
+  color: #999;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.devis-info-box {
+  background: #fafafa;
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 4px solid #667eea;
+}
+
+.devis-info-box p {
+  margin: 5px 0;
+  color: #333;
 }
 
 .client-section h3 {
@@ -318,6 +362,30 @@
 
 .articles-table tbody tr:hover {
   background: #f9f9f9;
+}
+
+.articles-table tbody tr.breakdown-row {
+  background: #fafbff;
+}
+
+.articles-table tbody tr.breakdown-row:hover {
+  background: #f5f6ff;
+}
+
+.articles-table tbody tr.breakdown-row td {
+  padding: 6px 12px;
+  border-bottom: 1px dashed #e8e8e8;
+  font-size: 12px;
+  color: #666;
+}
+
+.articles-table tbody tr.breakdown-row .breakdown-label {
+  padding-left: 24px;
+  font-style: italic;
+}
+
+.articles-table tbody tr.breakdown-row .breakdown-amount {
+  font-style: normal;
 }
 
 .detail-materiel-section {
@@ -408,6 +476,40 @@
   font-size: 12px;
 }
 
+/* Footer Melodix fixe en bas de chaque page */
+.page-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  padding: 0 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 1;
+}
+
+.page-footer-border {
+  position: absolute;
+  top: 0;
+  left: 40px;
+  right: 40px;
+  height: 1px;
+  background: #e0e0e0;
+}
+
+.page-footer-content {
+  font-size: 8px;
+  color: #999;
+  text-align: center;
+  line-height: 1.2;
+  padding-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media print {
   @page {
     size: A4 portrait;
@@ -471,6 +573,27 @@
   .layout-drag-handle {
     display: none !important;
   }
+
+  .page-footer {
+    display: block !important;
+  }
+
+  .page-footer-content {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  .top-row {
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .client-section,
+  .devis-info-section {
+    flex: 1 1 100%;
+    min-width: 100%;
+  }
 }
 
 @media (max-width: 768px) {
@@ -480,6 +603,15 @@
 
   .devis-header {
     flex-direction: column;
+  }
+
+  .top-row {
+    flex-direction: column;
+  }
+
+  .client-section,
+  .devis-info-section {
+    min-width: 100%;
   }
 
   .entreprise-box {

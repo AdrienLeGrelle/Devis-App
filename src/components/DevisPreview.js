@@ -1,26 +1,29 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import Draggable from 'react-draggable';
 import { Rnd } from 'react-rnd';
 import { useUndoRedo } from '../hooks/useUndoRedo';
 import './DevisPreview.css';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import { getItemsBySet, calculerTotalDevis } from '../utils/devisUtils';
-import { TARIF_KM } from '../config/melodix';
+import { formatFooterEntreprise } from '../utils/formatFooterEntreprise';
+import DraggableBlock from './DraggableBlock';
 
 const QUOTE_ID = 'current';
 const IMAGES_KEY = `quoteImages:${QUOTE_ID}`;
 const LAYOUT_KEY = `quoteBlocksLayout:${QUOTE_ID}`;
 
-const PAGE_W = 794;
-const PAGE_H = 1123;
-const PADDING = 48;
-const MARGIN_BOTTOM = 48;
+// Constantes A4 standardisées (96dpi)
+const PAGE_WIDTH_PX = 794;
+const PAGE_HEIGHT_PX = 1123;
+const PAGE_PADDING = 40;
+const CONTENT_WIDTH = PAGE_WIDTH_PX - 2 * PAGE_PADDING;
+const CONTENT_HEIGHT = PAGE_HEIGHT_PX - 2 * PAGE_PADDING;
+const FOOTER_HEIGHT = 30;
 
 const BLOCK_IDS = [
   'headerTitle',
-  'companyCard',
   'headerSeparator',
+  'devisInfoCard',
   'billedTo',
   'itemsTable',
   'materielDetail',
@@ -29,16 +32,40 @@ const BLOCK_IDS = [
   'footerSection',
 ];
 
+// Modèle de données unifié : { id, type, pageIndex, x, y, w, h, zIndex }
+// Bloc coordonnées entreprise supprimé : on ne rend plus companyCard/companyBox
+const DEPRECATED_BLOCK_IDS = ['companyCard', 'companyBox', 'company-info'];
+function migrateLayout(oldLayout) {
+  if (!oldLayout) return {};
+  const migrated = {};
+  for (const [id, val] of Object.entries(oldLayout)) {
+    if (DEPRECATED_BLOCK_IDS.includes(id)) continue;
+    if (val && typeof val === 'object') {
+      migrated[id] = {
+        pageIndex: val.pageIndex ?? 0,
+        x: val.x ?? 0,
+        y: val.y ?? 0,
+        w: val.w,
+        h: val.h,
+        zIndex: val.zIndex ?? 0,
+      };
+    }
+  }
+  return migrated;
+}
+
 function loadImages() {
   try {
     const raw = localStorage.getItem(IMAGES_KEY);
     const arr = raw ? JSON.parse(raw) : [];
     return arr.map((img) => ({
       ...img,
+      pageIndex: img.pageIndex ?? 0,
       x: img.x ?? 100,
       y: img.y ?? 100,
       w: img.w ?? 200,
       h: img.h ?? 150,
+      zIndex: img.zIndex ?? 0,
     }));
   } catch (e) {
     return [];
@@ -54,16 +81,7 @@ function loadLayout() {
     const raw = localStorage.getItem(LAYOUT_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return null;
-    const migrated = {};
-    for (const [id, val] of Object.entries(parsed)) {
-      if (val && typeof val === 'object' && ('x' in val || 'y' in val)) {
-        const item = { x: val.x ?? 0, y: val.y ?? 0 };
-        if (val.w != null && typeof val.w === 'number') item.w = val.w;
-        migrated[id] = item;
-      }
-    }
-    return Object.keys(migrated).length > 0 ? migrated : null;
+    return migrateLayout(parsed);
   } catch (e) {
     return null;
   }
@@ -80,18 +98,52 @@ const initialQuoteState = () => ({
 
 const SAVE_DEBOUNCE_MS = 300;
 
-function DevisPreview({ devisData, inventory, registerUndoManager }) {
+function DevisPreview({ devisData, inventory, registerUndoManager, pricePerKm = 0.60 }) {
   const [isLayoutEdit, setIsLayoutEdit] = useState(false);
   const [selectedImageId, setSelectedImageId] = useState(null);
   const [blockOrigins, setBlockOrigins] = useState({});
   const [layoutResetKey, setLayoutResetKey] = useState(0);
-  const pageRef = useRef(null);
+  const pagesContainerRef = useRef(null);
+  const pageRefs = useRef({});
 
   const quoteUndo = useUndoRedo(initialQuoteState(), 50);
   const { present, setPresent, commit, undo, redo, canUndo, canRedo } = quoteUndo;
   const { layoutOffsets, pastedImages } = present;
 
-  const getBlockData = (id) => layoutOffsets[id] || { x: 0, y: 0, w: undefined };
+  // Calculer le nombre de pages nécessaires
+  const getMaxPageIndex = useCallback(() => {
+    let maxPage = 0;
+    // Parcourir tous les blocs et images pour trouver la page max
+    Object.values(layoutOffsets).forEach((block) => {
+      if (block.pageIndex != null && block.pageIndex > maxPage) {
+        maxPage = block.pageIndex;
+      }
+    });
+    pastedImages.forEach((img) => {
+      if (img.pageIndex != null && img.pageIndex > maxPage) {
+        maxPage = img.pageIndex;
+      }
+    });
+    return Math.max(0, maxPage);
+  }, [layoutOffsets, pastedImages]);
+
+  const numPages = Math.max(1, getMaxPageIndex() + 1);
+
+  const getBlockData = (id) => {
+    const data = layoutOffsets[id];
+    if (!data) {
+      // Initialiser les blocs par défaut sur la page 0
+      return { pageIndex: 0, x: 0, y: 0, w: undefined, h: undefined, zIndex: 0 };
+    }
+    return {
+      pageIndex: data.pageIndex ?? 0,
+      x: data.x ?? 0,
+      y: data.y ?? 0,
+      w: data.w,
+      h: data.h,
+      zIndex: data.zIndex ?? 0,
+    };
+  };
 
   useEffect(() => {
     if (registerUndoManager) {
@@ -136,13 +188,23 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
           const file = item.getAsFile();
           const reader = new FileReader();
           reader.onload = (ev) => {
+            // Trouver la page courante (centrée dans la vue)
+            const container = pagesContainerRef.current;
+            if (!container) return;
+            const containerRect = container.getBoundingClientRect();
+            const scrollTop = container.scrollTop || 0;
+            const centerY = scrollTop + containerRect.height / 2;
+            const currentPageIndex = Math.max(0, Math.floor(centerY / (PAGE_HEIGHT_PX + 32)));
+            
             const newImg = {
               id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `img-${Date.now()}`,
               src: ev.target.result,
-              x: 100,
-              y: 100,
+              pageIndex: currentPageIndex,
+              x: CONTENT_WIDTH / 2 - 100,
+              y: CONTENT_HEIGHT / 2 - 75,
               w: 200,
               h: 150,
+              zIndex: 0,
             };
             setPresent(
               (prev) => ({ ...prev, pastedImages: [...prev.pastedImages, newImg] }),
@@ -192,17 +254,53 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
     [setPresent]
   );
 
-  const handleLayoutDragStart = useCallback(() => commit(), [commit]);
+  const handleLayoutDragStart = useCallback((id) => {
+    commit();
+  }, [commit]);
+
+  // Calcul de la page cible depuis la position globale du drag
+  const calculatePageFromGlobalY = useCallback((clientY, currentPageIndex) => {
+    const container = pagesContainerRef.current;
+    if (!container) return { targetPageIndex: currentPageIndex, yLocal: 0 };
+    
+    const containerRect = container.getBoundingClientRect();
+    const scrollTop = container.scrollTop || 0;
+    const relativeY = clientY - containerRect.top + scrollTop;
+    
+    // Chaque page fait PAGE_HEIGHT_PX + gap (32px)
+    const pageHeightWithGap = PAGE_HEIGHT_PX + 32;
+    const targetPageIndex = Math.max(0, Math.floor(relativeY / pageHeightWithGap));
+    const yLocal = relativeY - targetPageIndex * pageHeightWithGap - PAGE_PADDING;
+    
+    return { targetPageIndex, yLocal };
+  }, []);
 
   const handleLayoutDrag = useCallback(
-    (id, e, d, orig) => {
-      const newX = d.x;
-      const newY = d.y;
+    (id, newX, newY, e) => {
+      const blockData = getBlockData(id);
+      const currentPageIndex = blockData.pageIndex || 0;
+      
+      // Calculer la page cible depuis la position globale du pointeur
+      const container = pagesContainerRef.current;
+      if (!container || !e) return;
+      
+      const containerRect = container.getBoundingClientRect();
+      const scrollTop = container.scrollTop || 0;
+      // Position Y globale dans le document (toutes pages empilées)
+      const relativeY = e.clientY - containerRect.top + scrollTop;
+      const pageHeightWithGap = PAGE_HEIGHT_PX + 32;
+      const targetPageIndex = Math.max(0, Math.floor(relativeY / pageHeightWithGap));
+      
       setPresent((prev) => {
         const existing = prev.layoutOffsets[id] || {};
         const nextLayout = {
           ...prev.layoutOffsets,
-          [id]: { ...existing, x: newX, y: newY },
+          [id]: {
+            ...existing,
+            pageIndex: targetPageIndex,
+            x: newX,
+            y: newY,
+          },
         };
         return { ...prev, layoutOffsets: nextLayout };
       }, {});
@@ -211,14 +309,30 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
   );
 
   const handleLayoutDragStop = useCallback(
-    (id, e, d, orig) => {
-      const newX = d.x;
-      const newY = d.y;
+    (id, newX, newY, e) => {
+      const blockData = getBlockData(id);
+      const currentPageIndex = blockData.pageIndex || 0;
+      
+      // Calculer la page cible depuis la position globale du pointeur
+      const container = pagesContainerRef.current;
+      if (!container || !e) return;
+      
+      const containerRect = container.getBoundingClientRect();
+      const scrollTop = container.scrollTop || 0;
+      const relativeY = e.clientY - containerRect.top + scrollTop;
+      const pageHeightWithGap = PAGE_HEIGHT_PX + 32;
+      const targetPageIndex = Math.max(0, Math.floor(relativeY / pageHeightWithGap));
+      
       setPresent((prev) => {
         const existing = prev.layoutOffsets[id] || {};
         const nextLayout = {
           ...prev.layoutOffsets,
-          [id]: { ...existing, x: newX, y: newY },
+          [id]: {
+            ...existing,
+            pageIndex: targetPageIndex,
+            x: newX,
+            y: newY,
+          },
         };
         saveLayout(nextLayout);
         return { ...prev, layoutOffsets: nextLayout };
@@ -228,21 +342,41 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
   );
 
   const handleImageDrag = useCallback(
-    (imgId, d) => {
-      const newX = d.x;
-      const newY = d.y;
-      updateImage(imgId, { x: newX, y: newY }, {});
+    (imgId, e, d, pageIndex) => {
+      const img = pastedImages.find((i) => i.id === imgId);
+      if (!img) return;
+      
+      const { targetPageIndex, yLocal } = calculatePageFromGlobalY(e.clientY, pageIndex);
+      
+      const clampedX = Math.max(0, Math.min(CONTENT_WIDTH - (img.w || 200), d.x));
+      const clampedY = Math.max(0, Math.min(CONTENT_HEIGHT - FOOTER_HEIGHT - (img.h || 150), yLocal));
+      
+      updateImage(imgId, {
+        pageIndex: targetPageIndex,
+        x: clampedX,
+        y: clampedY,
+      }, {});
     },
-    [updateImage]
+    [pastedImages, updateImage, calculatePageFromGlobalY]
   );
 
   const handleImageDragStop = useCallback(
-    (imgId, d) => {
-      const newX = d.x;
-      const newY = d.y;
-      updateImage(imgId, { x: newX, y: newY }, { commit: true, saveImmediate: true });
+    (imgId, e, d, pageIndex) => {
+      const img = pastedImages.find((i) => i.id === imgId);
+      if (!img) return;
+      
+      const { targetPageIndex, yLocal } = calculatePageFromGlobalY(e.clientY, pageIndex);
+      
+      const clampedX = Math.max(0, Math.min(CONTENT_WIDTH - (img.w || 200), d.x));
+      const clampedY = Math.max(0, Math.min(CONTENT_HEIGHT - FOOTER_HEIGHT - (img.h || 150), yLocal));
+      
+      updateImage(imgId, {
+        pageIndex: targetPageIndex,
+        x: clampedX,
+        y: clampedY,
+      }, { commit: true, saveImmediate: true });
     },
-    [updateImage]
+    [pastedImages, updateImage, calculatePageFromGlobalY]
   );
 
   const handleFinishEdit = useCallback(() => {
@@ -258,6 +392,7 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
     setLayoutResetKey((k) => k + 1);
   }, [setPresent]);
 
+  // Mesure des blocs par page
   useEffect(() => {
     if (!isLayoutEdit) {
       setBlockOrigins({});
@@ -265,32 +400,39 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
     }
     const timer = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const container = pageRef.current;
-        if (!container) return;
-        const containerRect = container.getBoundingClientRect();
         const blocks = {};
-        BLOCK_IDS.forEach((id) => {
-          const el = container.querySelector(`[data-block-id="${id}"]`);
-          if (el) {
-            const rect = el.getBoundingClientRect();
-            const offset = layoutOffsets[id] || { x: 0, y: 0 };
-            const x = rect.left - containerRect.left - PADDING;
-            const y = rect.top - containerRect.top - PADDING;
-            blocks[id] = {
-              x,
-              y,
-              w: rect.width,
-              h: rect.height,
-              baseX: x - (offset.x || 0),
-              baseY: y - (offset.y || 0),
-            };
-          }
-        });
+        for (let pageIdx = 0; pageIdx < numPages; pageIdx++) {
+          const pageRef = pageRefs.current[pageIdx];
+          if (!pageRef) continue;
+          
+          const containerRect = pageRef.getBoundingClientRect();
+          BLOCK_IDS.forEach((id) => {
+            const blockData = getBlockData(id);
+            if (blockData.pageIndex !== pageIdx) return;
+            
+            const el = pageRef.querySelector(`[data-block-id="${id}"]`);
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              const x = rect.left - containerRect.left - PAGE_PADDING;
+              const y = rect.top - containerRect.top - PAGE_PADDING;
+              blocks[`${id}_${pageIdx}`] = {
+                id,
+                pageIndex: pageIdx,
+                x,
+                y,
+                w: rect.width,
+                h: rect.height,
+                baseX: x - (blockData.x || 0),
+                baseY: y - (blockData.y || 0),
+              };
+            }
+          });
+        }
         if (Object.keys(blocks).length > 0) setBlockOrigins(blocks);
       });
     });
     return () => cancelAnimationFrame(timer);
-  }, [isLayoutEdit, layoutResetKey, layoutOffsets]);
+  }, [isLayoutEdit, layoutResetKey, layoutOffsets, numPages]);
 
   if (!devisData) {
     return (
@@ -300,7 +442,7 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
     );
   }
 
-  const totalTTC = calculerTotalDevis(devisData);
+  const totalTTC = calculerTotalDevis(devisData, pricePerKm);
   const dateDevis = devisData.date ? format(new Date(devisData.date), 'dd/MM/yyyy', { locale: fr }) : '';
   const dateValidite =
     devisData.date && devisData.validite
@@ -315,7 +457,7 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
   const formule = devisData.formuleChoisie;
   const options = devisData.optionsChoisies || [];
   const km = Number(devisData.kmDeplacement) || 0;
-  const montantTransport = km * TARIF_KM;
+  const montantTransport = km * pricePerKm;
   const datePresta = devisData.dateDebutPrestation || devisData.date;
   const detailMateriel = formule?.setId ? getItemsBySet(inventory || {}, formule.setId, datePresta) : [];
 
@@ -325,35 +467,48 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
     return `translate(${o.x}px, ${o.y}px)`;
   };
 
-  const renderBlock = (id) => {
+  const renderBlock = (id, pageIndex) => {
+    const blockData = getBlockData(id);
+    if (blockData.pageIndex !== pageIndex) return null;
+    
     const transform = getBlockTransform(id);
     const style = transform ? { transform } : undefined;
-    const common = { key: id, 'data-block-id': id, style };
+    const common = { key: `${id}_${pageIndex}`, 'data-block-id': id, style };
 
     switch (id) {
       case 'headerTitle':
         return (
           <div className="header-left" {...common}>
             <h1>DEVIS</h1>
-            <div className="devis-info">
-              <p><strong>N° :</strong> {devisData.numero || '—'}</p>
-              <p><strong>Date :</strong> {dateDevis}</p>
-              <p><strong>Valide jusqu'au :</strong> {dateValidite}</p>
-            </div>
           </div>
         );
-      case 'companyCard':
+      case 'devisInfoCard':
         return (
-          <div className="header-right" {...common}>
-            <div className="entreprise-box">
-              <h3>{ent.nom || 'Votre Entreprise'}</h3>
-              <p>{ent.adresse}</p>
-              <p>{ent.codePostal} {ent.ville}</p>
-              {ent.telephone && <p>Tél : {ent.telephone}</p>}
-              {ent.email && <p>Email : {ent.email}</p>}
-              {ent.siret && <p>SIRET : {ent.siret}</p>}
-              {ent.codeAPE && <p>Code APE : {ent.codeAPE}</p>}
-              {ent.tva && <p>TVA : {ent.tva}</p>}
+          <div className="devis-info-section" {...common}>
+            <h3>Devis</h3>
+            <div className="devis-info-box">
+              {devisData.numero && (
+                <p><strong>N° :</strong> {devisData.numero}</p>
+              )}
+              {dateDevis && (
+                <p><strong>Date :</strong> {dateDevis}</p>
+              )}
+              {devisData.validite && (
+                <p>
+                  <strong>Validité :</strong> {devisData.validite} jour{Number(devisData.validite) > 1 ? 's' : ''}
+                  {dateValidite && ` (→ ${dateValidite})`}
+                </p>
+              )}
+              {(devisData.dateDebutPrestation || devisData.horairePrestation || devisData.lieuPrestation) && (
+                <p>
+                  <strong>Prestation :</strong>{' '}
+                  {[
+                    devisData.dateDebutPrestation && format(new Date(devisData.dateDebutPrestation), 'dd/MM/yyyy', { locale: fr }),
+                    devisData.horairePrestation,
+                    devisData.lieuPrestation,
+                  ].filter(Boolean).join(' • ')}
+                </p>
+              )}
             </div>
           </div>
         );
@@ -374,7 +529,10 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
           <div className="client-section" {...common}>
             <h3>Facturé à :</h3>
             <div className="client-box">
-              <p><strong>{client.nom || 'Nom du client'}</strong></p>
+              <p>
+                {client.prenom && <>{client.prenom} </>}
+                <strong>{client.nom || 'Nom du client'}</strong>
+              </p>
               <p>{client.adresse}</p>
               <p>{client.codePostal} {client.ville}</p>
               {client.telephone && <p>Tél : {client.telephone}</p>}
@@ -397,13 +555,21 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
               </thead>
               <tbody>
                 {formule && (
-                  <tr>
-                    <td>{formule.label}</td>
-                    <td className="num">1</td>
-                    <td className="num">{(formule.prixTTC / 1.2).toFixed(2)} €</td>
-                    <td className="num">20 %</td>
-                    <td className="num">{formule.prixTTC.toFixed(2)} €</td>
-                  </tr>
+                  <>
+                    <tr>
+                      <td>{formule.label}</td>
+                      <td className="num">1</td>
+                      <td className="num">{(formule.prixTTC / 1.2).toFixed(2)} €</td>
+                      <td className="num">20 %</td>
+                      <td className="num">{formule.prixTTC.toFixed(2)} €</td>
+                    </tr>
+                    {formule.breakdown?.length > 0 && formule.breakdown.map((bd) => (
+                      <tr key={bd.id} className="breakdown-row">
+                        <td colSpan="4" className="breakdown-label">{bd.label}</td>
+                        <td className="num breakdown-amount">{bd.amountTTC.toFixed(2)} €</td>
+                      </tr>
+                    ))}
+                  </>
                 )}
                 {options.map((opt) => {
                   const qty = Number(opt.quantite) || 1;
@@ -421,7 +587,7 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
                 })}
                 {km > 0 && (
                   <tr>
-                    <td>Transport ({km} km × {TARIF_KM} €/km)</td>
+                    <td>Transport ({km} km × {pricePerKm.toFixed(2)} €/km)</td>
                     <td className="num">1</td>
                     <td className="num">{montantTransport.toFixed(2)} €</td>
                     <td className="num">0 %</td>
@@ -433,19 +599,7 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
           </div>
         );
       case 'materielDetail':
-        if (detailMateriel.length === 0) return null;
-        return (
-          <div className="detail-materiel-section" {...common}>
-            <h4>Détail du matériel inclus (Set {formule.setId})</h4>
-            <ul>
-              {detailMateriel.map((item) => (
-                <li key={item.id}>
-                  {item.qty > 1 ? `${item.qty} × ` : ''}{item.name}
-                </li>
-              ))}
-            </ul>
-          </div>
-        );
+        return null;
       case 'totalBox':
         return (
           <div className="totals-section" {...common}>
@@ -476,14 +630,178 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
           </div>
         );
       case 'footerSection':
-        return (
-          <div className="devis-footer" {...common}>
-            <p>Merci de votre confiance !</p>
-          </div>
-        );
+        return null; // Remplacé par le footer Melodix fixe
       default:
         return null;
     }
+  };
+
+  const renderPageFooter = (pageIndex) => {
+    const entreprise = devisData?.entreprise || {};
+    const footerLine = formatFooterEntreprise(entreprise);
+    
+    return (
+      <div className="page-footer">
+        <div className="page-footer-border" />
+        <div className="page-footer-content">
+          {footerLine || '\u00A0'}
+        </div>
+      </div>
+    );
+  };
+
+  const renderPage = (pageIndex) => {
+    const blocksOnPage = BLOCK_IDS.filter((id) => {
+      const blockData = getBlockData(id);
+      return blockData.pageIndex === pageIndex;
+    });
+
+    return (
+      <div
+        key={pageIndex}
+        ref={(el) => {
+          if (el) pageRefs.current[pageIndex] = el;
+        }}
+        className="page"
+        style={{
+          width: PAGE_WIDTH_PX,
+          height: PAGE_HEIGHT_PX,
+          padding: PAGE_PADDING,
+        }}
+      >
+        <div className="page-inner" style={{ paddingBottom: FOOTER_HEIGHT }}>
+          {pageIndex === 0 && (
+            <>
+              <div className="devis-header">
+                {renderBlock('headerTitle', pageIndex)}
+              </div>
+              {renderBlock('headerSeparator', pageIndex)}
+              <div className="top-row">
+                {renderBlock('billedTo', pageIndex)}
+                {renderBlock('devisInfoCard', pageIndex)}
+              </div>
+            </>
+          )}
+          {blocksOnPage.map((id) => {
+            if (['headerTitle', 'headerSeparator', 'devisInfoCard', 'billedTo'].includes(id) && pageIndex === 0) {
+              return null;
+            }
+            return renderBlock(id, pageIndex);
+          })}
+        </div>
+
+        {/* Footer Melodix fixe en bas */}
+        {renderPageFooter(pageIndex)}
+
+        {/* Overlay de drag pour cette page */}
+        {isLayoutEdit && Object.keys(blockOrigins).length > 0 && (
+          <div
+            className="layout-overlay"
+            style={{
+              top: PAGE_PADDING,
+              left: PAGE_PADDING,
+              right: PAGE_PADDING,
+              bottom: PAGE_PADDING + FOOTER_HEIGHT,
+            }}
+          >
+            {Object.entries(blockOrigins)
+              .filter(([key, orig]) => orig.pageIndex === pageIndex)
+              .map(([key, orig]) => {
+                const offset = getBlockData(orig.id);
+                // baseX/Y = position sans transform, currentX/Y = transform
+                const baseX = orig.baseX ?? orig.x - (offset.x || 0);
+                const baseY = orig.baseY ?? orig.y - (offset.y || 0);
+                // Position actuelle mesurée dans le canvas (avec transform)
+                const measuredX = orig.x;
+                const measuredY = orig.y;
+                return (
+                  <DraggableBlock
+                    key={key}
+                    id={orig.id}
+                    canvasRef={pagesContainerRef}
+                    pageRef={pageRefs.current[pageIndex]}
+                    pageIndex={pageIndex}
+                    baseX={baseX}
+                    baseY={baseY}
+                    measuredX={measuredX}
+                    measuredY={measuredY}
+                    width={orig.w}
+                    height={orig.h}
+                    currentX={offset.x || 0}
+                    currentY={offset.y || 0}
+                    onDragStart={handleLayoutDragStart}
+                    onDrag={handleLayoutDrag}
+                    onDragStop={handleLayoutDragStop}
+                    contentWidth={CONTENT_WIDTH}
+                    contentHeight={CONTENT_HEIGHT}
+                    footerHeight={FOOTER_HEIGHT}
+                    editMode={isLayoutEdit}
+                  >
+                    <div
+                      className="layout-overlay-frame"
+                      style={{
+                        width: orig.w,
+                        height: orig.h,
+                        pointerEvents: 'auto',
+                      }}
+                    >
+                      <span className="layout-drag-handle" title="Glisser" />
+                    </div>
+                  </DraggableBlock>
+                );
+              })}
+          </div>
+        )}
+
+        {/* Images sur cette page */}
+        {pastedImages
+          .filter((img) => img.pageIndex === pageIndex)
+          .map((img) => (
+            <Rnd
+              key={img.id}
+              size={{ width: img.w ?? 200, height: img.h ?? 150 }}
+              position={{ x: img.x ?? 100, y: img.y ?? 100 }}
+              onDragStart={() => commit()}
+              onDrag={(e, d) => handleImageDrag(img.id, e, d, pageIndex)}
+              onDragStop={(e, d) => handleImageDragStop(img.id, e, d, pageIndex)}
+              onResizeStart={() => commit()}
+              onResize={(e, direction, ref, delta, position) => {
+                updateImage(img.id, {
+                  w: parseInt(ref.style.width, 10),
+                  h: parseInt(ref.style.height, 10),
+                  x: position.x,
+                  y: position.y,
+                });
+              }}
+              onResizeStop={(e, direction, ref, delta, position) => {
+                updateImage(img.id, {
+                  w: parseInt(ref.style.width, 10),
+                  h: parseInt(ref.style.height, 10),
+                  x: position.x,
+                  y: position.y,
+                }, { commit: true, saveImmediate: true });
+              }}
+              onMouseDown={() => isLayoutEdit && setSelectedImageId(img.id)}
+              disableDragging={!isLayoutEdit}
+              enableResizing={isLayoutEdit}
+              bounds={undefined}
+              className={`pasted-image ${isLayoutEdit ? 'pasted-image--editing' : ''} ${isLayoutEdit && selectedImageId === img.id ? 'selected' : ''}`}
+            >
+              <img src={img.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              {isLayoutEdit && selectedImageId === img.id && (
+                <button
+                  type="button"
+                  className="image-delete-btn"
+                  onClick={() => deleteImage(img.id)}
+                  title="Supprimer"
+                >
+                  ×
+                </button>
+              )}
+            </Rnd>
+          ))}
+      </div>
+    );
   };
 
   return (
@@ -509,120 +827,13 @@ function DevisPreview({ devisData, inventory, registerUndoManager }) {
         )}
       </div>
       <div className="preview-container">
-        <div className="page-wrapper">
-          <div
-            ref={pageRef}
-            className="page"
-            style={{
-              width: PAGE_W,
-              height: PAGE_H,
-              padding: PADDING,
-            }}
-          >
-            <div className="page-inner">
-              <div className="devis-header">
-                {renderBlock('headerTitle')}
-                {renderBlock('companyCard')}
-              </div>
-              {renderBlock('headerSeparator')}
-              {renderBlock('billedTo')}
-              {renderBlock('itemsTable')}
-              {renderBlock('materielDetail')}
-              {renderBlock('totalBox')}
-              {renderBlock('notesSection')}
-              {renderBlock('footerSection')}
+        <div className="pages-container" ref={pagesContainerRef}>
+          {Array.from({ length: numPages }, (_, i) => (
+            <div key={i} className="page-wrapper">
+              <div className="page-label">Page {i + 1}</div>
+              {renderPage(i)}
             </div>
-
-            {isLayoutEdit && Object.keys(blockOrigins).length > 0 && (
-              <div
-                className="layout-overlay"
-                style={{
-                  pointerEvents: 'none',
-                  top: PADDING,
-                  left: PADDING,
-                  right: PADDING,
-                  bottom: PADDING,
-                }}
-              >
-                {Object.entries(blockOrigins).map(([id, orig]) => {
-                  const offset = getBlockData(id);
-                  const baseX = orig.baseX ?? orig.x - (offset.x || 0);
-                  const baseY = orig.baseY ?? orig.y - (offset.y || 0);
-                  return (
-                    <Draggable
-                      key={id}
-                      position={{ x: offset.x || 0, y: offset.y || 0 }}
-                      positionOffset={{ x: baseX, y: baseY }}
-                      onStart={handleLayoutDragStart}
-                      onDrag={(e, d) => handleLayoutDrag(id, e, d, orig)}
-                      onStop={(e, d) => handleLayoutDragStop(id, e, d, orig)}
-                      handle=".layout-drag-handle"
-                      cancel="input,textarea,select,button,a"
-                    >
-                      <div
-                        className="layout-overlay-frame"
-                        style={{
-                          position: 'absolute',
-                          left: 0,
-                          top: 0,
-                          width: orig.w,
-                          height: orig.h,
-                          pointerEvents: 'auto',
-                        }}
-                      >
-                        <span className="layout-drag-handle" title="Glisser" />
-                      </div>
-                    </Draggable>
-                  );
-                })}
-              </div>
-            )}
-
-            {pastedImages.map((img) => (
-              <Rnd
-                key={img.id}
-                size={{ width: img.w ?? 200, height: img.h ?? 150 }}
-                position={{ x: img.x ?? 100, y: img.y ?? 100 }}
-                onDragStart={() => commit()}
-                onDrag={(e, d) => handleImageDrag(img.id, d)}
-                onDragStop={(e, d) => handleImageDragStop(img.id, d)}
-                onResizeStart={() => commit()}
-                onResize={(e, direction, ref, delta, position) => {
-                  updateImage(img.id, {
-                    w: parseInt(ref.style.width, 10),
-                    h: parseInt(ref.style.height, 10),
-                    x: position.x,
-                    y: position.y,
-                  });
-                }}
-                onResizeStop={(e, direction, ref, delta, position) => {
-                  updateImage(img.id, {
-                    w: parseInt(ref.style.width, 10),
-                    h: parseInt(ref.style.height, 10),
-                    x: position.x,
-                    y: position.y,
-                  }, { commit: true, saveImmediate: true });
-                }}
-                onMouseDown={() => isLayoutEdit && setSelectedImageId(img.id)}
-                disableDragging={!isLayoutEdit}
-                enableResizing={isLayoutEdit}
-                bounds={undefined}
-                className={`pasted-image ${isLayoutEdit ? 'pasted-image--editing' : ''} ${isLayoutEdit && selectedImageId === img.id ? 'selected' : ''}`}
-              >
-                <img src={img.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                {isLayoutEdit && selectedImageId === img.id && (
-                  <button
-                    type="button"
-                    className="image-delete-btn"
-                    onClick={() => deleteImage(img.id)}
-                    title="Supprimer"
-                  >
-                    ×
-                  </button>
-                )}
-              </Rnd>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
     </div>
