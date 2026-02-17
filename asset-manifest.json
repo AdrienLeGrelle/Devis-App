@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/Devis-App/static/css/main.485854d3.css",
+    "main.js": "/Devis-App/static/js/main.028fae3d.js",
+    "index.html": "/Devis-App/index.html",
+    "main.485854d3.css.map": "/Devis-App/static/css/main.485854d3.css.map",
+    "main.028fae3d.js.map": "/Devis-App/static/js/main.028fae3d.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.485854d3.css",
+    "static/js/main.028fae3d.js"
+  ]
+}
