@@ -235,6 +235,83 @@ class PDFGenerator {
     }
     doc.text('Merci de votre confiance !', pageWidth / 2, pageHeight - 10, { align: 'center' });
 
+    // ==================== PAGE 2 : MATÉRIEL ====================
+    doc.addPage();
+    let y2 = margin;
+
+    // En-tête page 2 : même style que page 1
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, pageWidth, 45, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('MATÉRIEL', margin, 28);
+
+    y2 = 55;
+
+    // Sous-titre : Client + N° devis + date
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    
+    const clientName = [client.prenom, client.nom].filter(Boolean).join(' ') || 'Client';
+    const devisNum = devisData.numero || '';
+    const dateDevisP2 = devisData.date ? format(new Date(devisData.date), 'dd/MM/yyyy', { locale: fr }) : '';
+    
+    const subtitleParts = [];
+    if (clientName) subtitleParts.push(clientName);
+    if (devisNum) subtitleParts.push(`N° ${devisNum}`);
+    if (dateDevisP2) subtitleParts.push(dateDevisP2);
+    
+    if (subtitleParts.length > 0) {
+      doc.text(subtitleParts.join('  •  '), margin, y2);
+      y2 += 10;
+    }
+
+    // Tableau placeholder Matériel
+    const materielData = [];
+    
+    // Pour l'instant : données factices placeholder
+    // TODO: remplacer par les vraies données du set/inventaire
+    const placeholderItems = [
+      { ref: '—', qty: '—' },
+      { ref: '—', qty: '—' },
+      { ref: '—', qty: '—' },
+      { ref: '(Aucune donnée)', qty: '' },
+    ];
+    
+    placeholderItems.forEach((item) => {
+      materielData.push([item.ref, item.qty]);
+    });
+
+    doc.autoTable({
+      startY: y2,
+      head: [['Réf / Matériel', 'Qté']],
+      body: materielData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: primaryColor,
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 10,
+      },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { halign: 'center', cellWidth: 40 },
+      },
+      margin: { left: margin, right: margin },
+    });
+
+    // Pied de page 2
+    doc.setFontSize(8);
+    doc.setTextColor(...gray);
+    doc.setFont('helvetica', 'normal');
+    if (footerLine) {
+      doc.text(footerLine, pageWidth / 2, pageHeight - 15, { align: 'center' });
+    }
+    doc.text('Page 2 / 2', pageWidth / 2, pageHeight - 10, { align: 'center' });
+
     const pdfOutput = doc.output('arraybuffer');
     return new Blob([pdfOutput], { type: 'application/pdf' });
   }

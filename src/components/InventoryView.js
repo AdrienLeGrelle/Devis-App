@@ -18,6 +18,9 @@ function InventoryView({ inventory, onInventoryChange, selectedDate: selectedDat
   const [newItem, setNewItem] = useState({ name: '', category: 'SON', qty: 1 });
   const [defectMaterialId, setDefectMaterialId] = useState('');
   const [showReglages, setShowReglages] = useState(false);
+  const [showMaterielManager, setShowMaterielManager] = useState(false);
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [filterCategory, setFilterCategory] = useState('ALL');
 
   const assignmentsForDate = getAssignmentsForDate(inventory, selectedDate);
   const setNamesForDate = getSetNamesForDate(inventory, selectedDate);
@@ -128,6 +131,17 @@ function InventoryView({ inventory, onInventoryChange, selectedDate: selectedDat
       });
     }
   };
+
+  const handleUpdateItem = (id, updates) => {
+    onInventoryChange({
+      ...inventory,
+      items: items.map((it) => (it.id === id ? { ...it, ...updates } : it)),
+    });
+  };
+
+  const filteredItems = filterCategory === 'ALL'
+    ? items
+    : items.filter((it) => it.category === filterCategory);
 
   return (
     <div className="inventory">
@@ -309,6 +323,87 @@ function InventoryView({ inventory, onInventoryChange, selectedDate: selectedDat
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="inventory-materiel-manager">
+        <button
+          type="button"
+          className="materiel-manager-toggle"
+          onClick={() => setShowMaterielManager(!showMaterielManager)}
+        >
+          📝 Gérer les noms du matériel
+        </button>
+        {showMaterielManager && (
+          <div className="materiel-manager-content">
+            <p className="materiel-manager-desc">
+              Ajoute un nom complet pour chaque matériel. Ce nom sera utilisé sur le devis (ex: "Système BOSE L1 Pro32" au lieu de "SET BOSE").
+            </p>
+            <div className="materiel-filter">
+              <label>Filtrer par catégorie :</label>
+              <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                <option value="ALL">Tous</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div className="materiel-list">
+              <div className="materiel-list-header">
+                <span className="col-name">Nom court</span>
+                <span className="col-fullname">Nom complet (devis)</span>
+                <span className="col-actions"></span>
+              </div>
+              {filteredItems.map((it) => (
+                <div key={it.id} className="materiel-row">
+                  <span className="col-name">{it.name}</span>
+                  {editingItemId === it.id ? (
+                    <input
+                      type="text"
+                      className="col-fullname-input"
+                      placeholder="Nom complet pour le devis..."
+                      defaultValue={it.fullName || ''}
+                      autoFocus
+                      onBlur={(e) => {
+                        handleUpdateItem(it.id, { fullName: e.target.value.trim() });
+                        setEditingItemId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleUpdateItem(it.id, { fullName: e.target.value.trim() });
+                          setEditingItemId(null);
+                        }
+                        if (e.key === 'Escape') {
+                          setEditingItemId(null);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <span
+                      className={`col-fullname ${it.fullName ? '' : 'empty'}`}
+                      onClick={() => setEditingItemId(it.id)}
+                      title="Cliquer pour éditer"
+                    >
+                      {it.fullName || '—'}
+                    </span>
+                  )}
+                  <span className="col-actions">
+                    <button
+                      type="button"
+                      className="btn-edit-fullname"
+                      onClick={() => setEditingItemId(it.id)}
+                      title="Modifier le nom complet"
+                    >
+                      ✏️
+                    </button>
+                  </span>
+                </div>
+              ))}
+              {filteredItems.length === 0 && (
+                <p className="materiel-empty">Aucun matériel dans cette catégorie.</p>
+              )}
+            </div>
           </div>
         )}
       </div>

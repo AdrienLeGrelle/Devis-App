@@ -19,3 +19,26 @@ code {
     monospace;
 }
 
+/* Impression : afficher uniquement le document devis */
+@media print {
+  body {
+    background: white;
+  }
+
+  .App-header,
+  .tabs,
+  .preview-ui {
+    display: none !important;
+  }
+
+  .App-main {
+    padding: 0;
+  }
+
+  .preview-container {
+    background: white !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+}
+

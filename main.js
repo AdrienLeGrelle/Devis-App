@@ -35,9 +35,9 @@ function createWindow() {
   };
 
   if (isDev) {
-    // Essayer de charger le serveur de développement
+    // Essayer localhost:3000 en priorité (npm run dev) pour avoir le code à jour
     mainWindow.loadURL('http://localhost:3000').catch((err) => {
-      console.log('Serveur de développement non disponible, utilisation du build...');
+      console.log('localhost:3000 non disponible, chargement du build...');
       loadBuild();
     });
     mainWindow.webContents.openDevTools();

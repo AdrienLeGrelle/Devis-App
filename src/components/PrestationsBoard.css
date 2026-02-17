@@ -81,6 +81,26 @@
   font-size: 13px;
   text-align: center;
   padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn-add-in-column {
+  background: rgba(102, 126, 234, 0.15);
+  color: #667eea;
+  border: 1px dashed #667eea;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-add-in-column:hover {
+  background: rgba(102, 126, 234, 0.25);
+  color: #5568d3;
 }
 
 .card {
@@ -263,11 +283,20 @@
 }
 
 .editor-form {
-  display: grid;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.editor-form label {
+.editor-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.editor-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -275,28 +304,59 @@
   color: #444;
 }
 
-.editor-subsection-title {
-  margin-top: 4px;
-  font-weight: 600;
-  font-size: 13px;
+.editor-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-weight: 500;
   color: #333;
 }
 
-.editor-form input,
-.editor-form select,
-.editor-form textarea {
+.editor-icon {
+  font-size: 14px;
+  line-height: 1;
+  vertical-align: baseline;
+  width: 1.25em;
+  text-align: center;
+}
+
+.editor-field input,
+.editor-field select,
+.editor-field textarea {
+  width: 100%;
+  min-width: 0;
   border: 1px solid #dfe3f0;
   border-radius: 8px;
   padding: 8px 10px;
   font-size: 14px;
   outline: none;
+  box-sizing: border-box;
 }
 
-.editor-form input:focus,
-.editor-form select:focus,
-.editor-form textarea:focus {
+.editor-field input:focus,
+.editor-field select:focus,
+.editor-field textarea:focus {
   border-color: #667eea;
   box-shadow: 0 0 0 2px rgba(102,126,234,0.15);
+}
+
+.editor-field-note {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.editor-label-note {
+  font-weight: 400;
+  color: #666;
+  font-size: 12px;
+}
+
+.editor-note-textarea {
+  min-height: 56px;
+  max-height: 80px;
+  resize: vertical;
+  font-size: 13px;
 }
 
 .editor-actions {
@@ -325,5 +385,25 @@
 
 .btn-primary:hover {
   filter: brightness(1.05);
+}
+
+@media (max-width: 600px) {
+  .editor {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 0;
+    max-height: 100vh;
+  }
+
+  .editor-form-fields {
+    max-height: 55vh;
+  }
+
+  .editor-field input,
+  .editor-field select,
+  .editor-field textarea {
+    max-width: 100%;
+  }
 }
 

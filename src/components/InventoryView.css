@@ -325,3 +325,150 @@
   background: #fff;
 }
 
+/* Materiel Manager */
+.inventory-materiel-manager {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f0f1ff;
+  border: 1px solid #e5e7f1;
+  border-radius: 10px;
+}
+
+.materiel-manager-toggle {
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5a67d8;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.materiel-manager-toggle:hover {
+  text-decoration: underline;
+}
+
+.materiel-manager-content {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7f1;
+}
+
+.materiel-manager-desc {
+  margin: 0 0 12px 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.materiel-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.materiel-filter label {
+  font-size: 13px;
+  color: #555;
+}
+
+.materiel-filter select {
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid #dfe3f0;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.materiel-list {
+  background: #fff;
+  border: 1px solid #e5e7f1;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.materiel-list-header {
+  display: grid;
+  grid-template-columns: 1fr 2fr 50px;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #f8f9ff;
+  border-bottom: 1px solid #e5e7f1;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+}
+
+.materiel-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr 50px;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  align-items: center;
+}
+
+.materiel-row:last-child {
+  border-bottom: none;
+}
+
+.materiel-row:hover {
+  background: #fafbff;
+}
+
+.materiel-row .col-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+}
+
+.materiel-row .col-fullname {
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.materiel-row .col-fullname:hover {
+  background: #f0f1ff;
+}
+
+.materiel-row .col-fullname.empty {
+  color: #aaa;
+  font-style: italic;
+}
+
+.materiel-row .col-fullname-input {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 13px;
+  border: 1px solid #667eea;
+  border-radius: 4px;
+  outline: none;
+}
+
+.materiel-row .col-actions {
+  text-align: center;
+}
+
+.btn-edit-fullname {
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0.6;
+}
+
+.btn-edit-fullname:hover {
+  opacity: 1;
+}
+
+.materiel-empty {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+}

@@ -138,25 +138,34 @@ function QuoteCanvasEditor({ layout, onLayoutChange, devisData, inventory, price
         height: '100%',
       };
       if (value?.type === 'table' && value.rows?.length) {
+        const numStyle = { 
+          padding: 6, 
+          textAlign: 'right', 
+          whiteSpace: 'nowrap', 
+          fontVariantNumeric: 'tabular-nums',
+          fontFeatureSettings: '"tnum"',
+          wordBreak: 'keep-all',
+          overflow: 'visible'
+        };
         return (
-          <table style={{ ...baseStyle, fontSize: 11, width: '100%', borderCollapse: 'collapse' }}>
+          <table className="quote-articles-table" style={{ ...baseStyle, fontSize: 11, width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#667eea', color: 'white' }}>
                 <th style={{ padding: 6, textAlign: 'left' }}>Désignation</th>
-                <th style={{ padding: 6, textAlign: 'right' }}>Qté</th>
-                <th style={{ padding: 6, textAlign: 'right' }}>Prix unit. HT</th>
-                <th style={{ padding: 6, textAlign: 'right' }}>TVA</th>
-                <th style={{ padding: 6, textAlign: 'right' }}>Total TTC</th>
+                <th style={numStyle}>Qté</th>
+                <th style={numStyle}>Prix unit. HT</th>
+                <th style={numStyle}>TVA</th>
+                <th style={numStyle}>Total TTC</th>
               </tr>
             </thead>
             <tbody>
               {value.rows.map((r, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid #e0e0e0' }}>
                   <td style={{ padding: 6 }}>{r.designation}</td>
-                  <td style={{ padding: 6, textAlign: 'right' }}>{r.qty}</td>
-                  <td style={{ padding: 6, textAlign: 'right' }}>{r.pu} €</td>
-                  <td style={{ padding: 6, textAlign: 'right' }}>{r.tva}</td>
-                  <td style={{ padding: 6, textAlign: 'right' }}>{r.total} €</td>
+                  <td style={numStyle}>{r.qty}</td>
+                  <td style={numStyle}>{r.pu}\u00A0€</td>
+                  <td style={numStyle}>{r.tva.replace(' ', '\u00A0')}</td>
+                  <td style={numStyle}>{r.total}\u00A0€</td>
                 </tr>
               ))}
             </tbody>

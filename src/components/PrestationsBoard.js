@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import './PrestationsBoard.css';
 import SetAssignmentPanel from './SetAssignmentPanel';
 import { getAssignmentsForDate, getSetNamesForDate, SET_ZONES } from '../utils/inventoryAssignments';
@@ -22,11 +22,10 @@ const TYPE_OPTIONS = [
   'Soirée',
 ];
 
-const STATUS_SUGGESTIONS = ['À faire', 'Confirmé', 'Terminé', 'Annulé'];
+// Les colonnes = source de vérité des statuts (statut = column.id)
 const ORIGINE_OPTIONS = ['Adrien', 'Côme', 'Martin', 'Melodix'];
 const RESPONSABLE_OPTIONS = ['Adrien', 'Côme', 'Martin'];
 const COMM_OPTIONS = ['Autre', 'WhatsApp', 'Insta', 'Message', 'Mail', 'Messenger', 'messages'];
-const FORMULE_CHOICES = ['Formule excellence', 'Formule premium', 'Formule classique'];
 
 function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange, onPreparePrestation }) {
   const [formData, setFormData] = useState(null);
@@ -55,30 +54,26 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
     [grouped]
   );
 
-  const startCreate = () => {
+  const startCreate = (defaultStatut) => {
     setMode('create');
+    const initialStatut = defaultStatut || columns[0].id;
     setFormData({
       id: `p-${Date.now()}`,
       nom: '',
       type: '',
       montant: 0,
       date: '',
-      statut: columns[0].id,
+      statut: initialStatut,
       note: '',
       setId: null,
       prepChecklist: [],
-      // Champs détaillés façon fiche Notion, alignés sur ta liste
-      status: '',
       horaire: '',
       lieu: '',
       origineContrat: '',
-      responsable: '',
+      relationsGerePar: '',
       moyenCommunication: '',
+      responsable: '',
       taille: '',
-      devisRef: '',
-      formuleCatalogue: '',
-      formuleChoix: '',
-      materielUtilise: '',
     });
   };
 
@@ -87,6 +82,15 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
     setEditorTab('infos');
     setFormData({ ...item });
   };
+
+  // Sync formData.statut si la prestation est mise à jour par drag-drop pendant que le form est ouvert
+  useEffect(() => {
+    if (!formData || mode !== 'edit') return;
+    const updated = prestations.find((p) => p.id === formData.id);
+    if (updated && updated.statut !== formData.statut) {
+      setFormData((prev) => (prev ? { ...prev, statut: updated.statut } : null));
+    }
+  }, [prestations]);
 
   const closeForm = () => {
     setFormData(null);
@@ -133,7 +137,7 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
   return (
     <div className="prestations-board">
       <div className="board-actions">
-        <button className="btn-add" onClick={startCreate}>➕ Nouvelle prestation</button>
+        <button className="btn-add" onClick={() => startCreate()}>➕ Nouvelle prestation</button>
       </div>
 
       {grouped.map((col) => (
@@ -158,7 +162,12 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
           </div>
           <div className="column-body">
             {col.items.length === 0 && (
-              <div className="empty">Aucune prestation</div>
+              <div className="empty">
+                Aucune prestation
+                <button type="button" className="btn-add-in-column" onClick={(e) => { e.stopPropagation(); startCreate(col.id); }}>
+                  ➕ Ajouter
+                </button>
+              </div>
             )}
             {col.items.map((item) => (
               <div
@@ -203,8 +212,13 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
                     Préparer
                   </button>
                 </div>
-              </div>
-            ))}
+                </div>
+              ))}
+            {col.items.length > 0 && (
+              <button type="button" className="btn-add-in-column" onClick={(e) => { e.stopPropagation(); startCreate(col.id); }}>
+                ➕ Ajouter
+              </button>
+            )}
           </div>
         </div>
       ))}
@@ -234,177 +248,148 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
             </div>
             {editorTab === 'infos' ? (
             <form className="editor-form" onSubmit={saveForm}>
-              <label>
-                Nom
-                <input
-                  type="text"
-                  value={formData.nom}
-                  onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
-                  required
-                />
-              </label>
-              <label>
-                🎧 Prestation
-                <select
-                  value={formData.type || ''}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                >
-                  <option value="">— Sélectionner —</option>
-                  {TYPE_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                  {formData.type && !TYPE_OPTIONS.includes(formData.type) && (
-                    <option value={formData.type}>{formData.type}</option>
-                  )}
-                </select>
-              </label>
-              <label>
-                🗓 Date
-                <input
-                  type="date"
-                  value={formData.date || ''}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                />
-              </label>
-              <label>
-                📌 Status
-                <input
-                  type="text"
-                  list="status-suggestions"
-                  value={formData.status || ''}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  placeholder="Ex : À faire, Confirmé..."
-                />
-                <datalist id="status-suggestions">
-                  {STATUS_SUGGESTIONS.map((s) => (
-                    <option key={s} value={s} />
-                  ))}
-                </datalist>
-              </label>
-              <label>
-                💶 Tarifs (€)
-                <input
-                  type="number"
-                  value={formData.montant}
-                  onChange={(e) => setFormData({ ...formData, montant: e.target.value })}
-                  min="0"
-                  step="50"
-                />
-              </label>
+              <div className="editor-form-fields">
+                <label className="editor-field">
+                  <span className="editor-label">Nom</span>
+                  <input
+                    type="text"
+                    value={formData.nom}
+                    onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                    required
+                    placeholder="Nom du client ou de la prestation"
+                  />
+                </label>
+                <label className="editor-field">
+                  <span className="editor-label"><span className="editor-icon">🗓</span> Date</span>
+                  <input
+                    type="date"
+                    value={formData.date || ''}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  />
+                </label>
+                <label className="editor-field">
+                  <span className="editor-label"><span className="editor-icon">🎧</span> Prestation</span>
+                  <select
+                    value={formData.type || ''}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  >
+                    <option value="">— Sélectionner —</option>
+                    {TYPE_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                    {formData.type && !TYPE_OPTIONS.includes(formData.type) && (
+                      <option value={formData.type}>{formData.type}</option>
+                    )}
+                  </select>
+                </label>
+                <label className="editor-field">
+                  <span className="editor-label"><span className="editor-icon">📌</span> Status</span>
+                  <select
+                    value={formData.statut || columns[0].id}
+                    onChange={(e) => setFormData({ ...formData, statut: e.target.value })}
+                  >
+                    {columns.map((c) => (
+                      <option key={c.id} value={c.id}>{c.title}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="editor-field">
+                  <span className="editor-label"><span className="editor-icon">≡</span> horaire</span>
+                  <input
+                    type="text"
+                    value={formData.horaire || ''}
+                    onChange={(e) => setFormData({ ...formData, horaire: e.target.value })}
+                    placeholder="Ex : 20h00 → 5h00"
+                  />
+                </label>
+                <label className="editor-field">
+                  <span className="editor-label"><span className="editor-icon">📍</span> Lieux</span>
+                  <input
+                    type="text"
+                    value={formData.lieu || ''}
+                    onChange={(e) => setFormData({ ...formData, lieu: e.target.value })}
+                    placeholder="Ex : La Roche Thévenin, 85 600 Montaigu"
+                  />
+                </label>
+                <label className="editor-field">
+                  <span className="editor-label"><span className="editor-icon">#</span> Tarifs</span>
+                  <input
+                    type="number"
+                    value={formData.montant}
+                    onChange={(e) => setFormData({ ...formData, montant: e.target.value })}
+                    min="0"
+                    step="50"
+                  />
+                </label>
+                <label className="editor-field">
+                  <span className="editor-label"><span className="editor-icon">🔗</span> Origine du contrat</span>
+                  <select
+                    value={formData.origineContrat || ''}
+                    onChange={(e) => setFormData({ ...formData, origineContrat: e.target.value })}
+                  >
+                    <option value="">— Sélectionner —</option>
+                    {ORIGINE_OPTIONS.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="editor-field">
+                  <span className="editor-label"><span className="editor-icon">▦</span> Relations géré par</span>
+                  <select
+                    value={formData.relationsGerePar || ''}
+                    onChange={(e) => setFormData({ ...formData, relationsGerePar: e.target.value })}
+                  >
+                    <option value="">— Sélectionner —</option>
+                    {RESPONSABLE_OPTIONS.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="editor-field">
+                  <span className="editor-label"><span className="editor-icon">💬</span> Moyen de comm.</span>
+                  <select
+                    value={formData.moyenCommunication || ''}
+                    onChange={(e) => setFormData({ ...formData, moyenCommunication: e.target.value })}
+                  >
+                    <option value="">— Sélectionner —</option>
+                    {COMM_OPTIONS.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="editor-field">
+                  <span className="editor-label"><span className="editor-icon">👤</span> Respo et accom.</span>
+                  <select
+                    value={formData.responsable || ''}
+                    onChange={(e) => setFormData({ ...formData, responsable: e.target.value })}
+                  >
+                    <option value="">— Sélectionner —</option>
+                    {RESPONSABLE_OPTIONS.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="editor-field">
+                  <span className="editor-label"><span className="editor-icon">📦</span> Taille</span>
+                  <input
+                    type="text"
+                    value={formData.taille || ''}
+                    onChange={(e) => setFormData({ ...formData, taille: e.target.value })}
+                    placeholder="Ex : 150, 300 dîner..."
+                  />
+                </label>
 
-              <label>
-                Note (résumé)
-                <textarea
-                  value={formData.note || ''}
-                  onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                  rows={2}
-                />
-              </label>
-
-              {/* Détails avancés façon fiche Isaure */}
-              <div className="editor-subsection-title">Détails de la prestation</div>
-              <label>
-                ⏰ Horaire
-                <input
-                  type="text"
-                  value={formData.horaire || ''}
-                  onChange={(e) => setFormData({ ...formData, horaire: e.target.value })}
-                  placeholder="Ex : 20h00 → 5h00"
-                />
-              </label>
-              <label>
-                📍 Lieux
-                <input
-                  type="text"
-                  value={formData.lieu || ''}
-                  onChange={(e) => setFormData({ ...formData, lieu: e.target.value })}
-                  placeholder="Ex : La Roche Thévenin, 85 600 Montaigu"
-                />
-              </label>
-              <label>
-                🔗 Origine du contrat
-                <select
-                  value={formData.origineContrat || ''}
-                  onChange={(e) => setFormData({ ...formData, origineContrat: e.target.value })}
-                >
-                  <option value="">— Sélectionner —</option>
-                  {ORIGINE_OPTIONS.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                👤 Responsable
-                <select
-                  value={formData.responsable || ''}
-                  onChange={(e) => setFormData({ ...formData, responsable: e.target.value })}
-                >
-                  <option value="">— Sélectionner —</option>
-                  {RESPONSABLE_OPTIONS.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                💬 Moyen de communication
-                <select
-                  value={formData.moyenCommunication || ''}
-                  onChange={(e) => setFormData({ ...formData, moyenCommunication: e.target.value })}
-                >
-                  <option value="">— Sélectionner —</option>
-                  {COMM_OPTIONS.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                📦 Taille
-                <input
-                  type="text"
-                  value={formData.taille || ''}
-                  onChange={(e) => setFormData({ ...formData, taille: e.target.value })}
-                  placeholder="Ex : 150, 300 dîner..."
-                />
-              </label>
-              <label>
-                📎 Devis (lien ou référence)
-                <input
-                  type="text"
-                  value={formData.devisRef || ''}
-                  onChange={(e) => setFormData({ ...formData, devisRef: e.target.value })}
-                  placeholder="URL ou nom de fichier"
-                />
-              </label>
-              <label>
-                🎼 Formule (catalogue)
-                <input
-                  type="text"
-                  value={formData.formuleCatalogue || ''}
-                  onChange={(e) => setFormData({ ...formData, formuleCatalogue: e.target.value })}
-                  placeholder="Ex : Premium, Classique..."
-                />
-              </label>
-              <label>
-                ❓ Formule ?
-                <select
-                  value={formData.formuleChoix || ''}
-                  onChange={(e) => setFormData({ ...formData, formuleChoix: e.target.value })}
-                >
-                  <option value="">— Sélectionner —</option>
-                  {FORMULE_CHOICES.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Matériel utilisé (résumé)
-                <input
-                  type="text"
-                  value={formData.materielUtilise || ''}
-                  onChange={(e) => setFormData({ ...formData, materielUtilise: e.target.value })}
-                  placeholder="Ex : SET1 + lyres beam + hazer..."
-                />
-              </label>
+                <label className="editor-field editor-field-note">
+                  <span className="editor-label editor-label-note">Note</span>
+                  <textarea
+                    value={formData.note || ''}
+                    onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                    rows={2}
+                    placeholder=""
+                    className="editor-note-textarea"
+                  />
+                </label>
+              </div>
 
               <div className="editor-actions">
                 <button type="button" className="btn-secondary" onClick={closeForm}>Annuler</button>

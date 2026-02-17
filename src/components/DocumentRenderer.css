@@ -1,0 +1,438 @@
+/* ========== DocumentRenderer : pages A4 physiques ========== */
+/* Preview = PDF identiques : même HTML/CSS pour les deux */
+
+.document-renderer {
+  padding: 12mm;
+  box-sizing: border-box;
+}
+
+.page {
+  width: 210mm;
+  height: 297mm;
+  background: #fff;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.page + .page {
+  margin-top: 16px;
+}
+
+.page-break {
+  break-after: page;
+  page-break-after: always;
+}
+
+/* Contenu page */
+.doc-page .page-inner {
+  position: relative;
+  padding: 12mm;
+  padding-bottom: 36px;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.doc-header {
+  margin-bottom: 20px;
+}
+
+.doc-header h1 {
+  font-size: 36px;
+  color: #667eea;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.doc-separator {
+  width: 100%;
+  height: 3px;
+  background: #667eea;
+  margin-bottom: 40px;
+}
+
+.doc-top-row {
+  display: flex;
+  align-items: stretch;
+  gap: 24px;
+  margin-bottom: 30px;
+}
+
+.doc-client-section,
+.doc-devis-info-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-client-section h3,
+.doc-devis-info-section h3 {
+  font-size: 14px;
+  color: #999;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.doc-client-box,
+.doc-devis-info-box {
+  background: #fafafa;
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 4px solid #667eea;
+}
+
+.doc-client-box p,
+.doc-devis-info-box p {
+  margin: 5px 0;
+  color: #333;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Tableau articles */
+.doc-articles-table {
+  margin: 30px 0;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.doc-articles-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+}
+
+/* Largeurs fixes pour les colonnes numériques - empêcher le wrapping */
+.doc-articles-table th:first-child,
+.doc-articles-table td:first-child {
+  width: auto;
+  min-width: 0;
+}
+
+.doc-articles-table th.qty,
+.doc-articles-table td.qty {
+  width: 60px;
+  min-width: 60px;
+}
+
+.doc-articles-table th.amount,
+.doc-articles-table td.amount {
+  width: 160px;
+  min-width: 160px;
+}
+
+.doc-articles-table th.percent,
+.doc-articles-table td.percent {
+  width: 100px;
+  min-width: 100px;
+}
+
+.doc-articles-table thead {
+  background: #667eea;
+  color: white;
+}
+
+.doc-articles-table th,
+.doc-articles-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.doc-articles-table th {
+  text-align: left;
+  font-weight: 600;
+}
+
+/* € et % : white-space nowrap pour éviter les coupures - FIX DÉFINITIF */
+.doc-articles-table th.num,
+.doc-articles-table td.num {
+  text-align: right;
+  white-space: nowrap !important;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  word-wrap: normal !important;
+  line-height: 1.4;
+  /* Empêcher tout wrapping */
+  hyphens: none !important;
+}
+
+.doc-articles-table th.amount,
+.doc-articles-table td.amount,
+.doc-articles-table th.percent,
+.doc-articles-table td.percent {
+  text-align: right;
+  white-space: nowrap !important;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  word-wrap: normal !important;
+  line-height: 1.4;
+  padding-right: 16px;
+  padding-left: 12px;
+  box-sizing: border-box;
+  /* Empêcher tout wrapping */
+  hyphens: none !important;
+}
+
+/* Forcer le contenu des cellules numériques à rester inline */
+.doc-articles-table td.amount,
+.doc-articles-table td.percent {
+  display: table-cell !important;
+}
+
+.doc-articles-table td.amount > *,
+.doc-articles-table td.percent > * {
+  white-space: nowrap !important;
+  display: inline !important;
+}
+
+.doc-articles-table th.qty,
+.doc-articles-table td.qty {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.doc-articles-table tbody tr.breakdown-row {
+  background: #fafbff;
+}
+
+.doc-articles-table tbody tr.breakdown-row td {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #666;
+}
+
+.doc-articles-table .breakdown-label {
+  padding-left: 24px;
+  font-style: italic;
+}
+
+.doc-articles-table .breakdown-amount {
+  font-style: normal;
+}
+
+/* Totals */
+.doc-totals-section {
+  margin-top: 30px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.doc-totals-table {
+  width: 300px;
+}
+
+.doc-totals-table .total-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.doc-totals-table .total-row.total-final {
+  border-top: 2px solid #667eea;
+  margin-top: 10px;
+  padding-top: 15px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.doc-totals-table .amount {
+  white-space: nowrap !important;
+  font-variant-numeric: tabular-nums;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  word-wrap: normal !important;
+  line-height: 1.4;
+  display: inline;
+}
+
+/* Notes */
+.doc-notes-section {
+  margin-top: 40px;
+  padding-top: 30px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.doc-notes-box,
+.doc-conditions-box {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f9f9f9;
+  border-radius: 6px;
+}
+
+.doc-notes-box h4,
+.doc-conditions-box h4 {
+  font-size: 14px;
+  color: #667eea;
+  margin-bottom: 8px;
+}
+
+.doc-notes-box p,
+.doc-conditions-box p {
+  color: #555;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* Footer page */
+.doc-page-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  padding: 0 12mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 1;
+}
+
+.doc-page-footer-border {
+  position: absolute;
+  top: 0;
+  left: 12mm;
+  right: 12mm;
+  height: 1px;
+  background: #e0e0e0;
+}
+
+.doc-page-footer-content {
+  font-size: 8px;
+  color: #999;
+  text-align: center;
+  line-height: 1.2;
+  padding-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Page MATÉRIEL */
+.doc-materiel-page .doc-header h1 {
+  font-size: 24px;
+}
+
+.doc-materiel-subtitle {
+  font-size: 10px;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.doc-materiel-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.doc-materiel-table thead {
+  background: #667eea;
+  color: white;
+}
+
+.doc-materiel-table th,
+.doc-materiel-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.doc-materiel-table th.qty,
+.doc-materiel-table td.qty {
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ========== @media print ========== */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body {
+    background: white;
+  }
+
+  .preview-ui {
+    display: none !important;
+  }
+
+  .document-renderer {
+    padding: 0;
+  }
+
+  .page {
+    box-shadow: none;
+    margin: 0;
+    page-break-after: always;
+  }
+
+  .page:last-child {
+    page-break-after: auto;
+  }
+
+  .page + .page {
+    margin-top: 0;
+  }
+
+  .doc-page-footer-content {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* Assurer que € et % ne se coupent pas à l'impression */
+  .doc-articles-table th.num,
+  .doc-articles-table td.num,
+  .doc-articles-table th.amount,
+  .doc-articles-table td.amount,
+  .doc-articles-table th.percent,
+  .doc-articles-table td.percent {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    word-wrap: normal !important;
+    hyphens: none !important;
+  }
+  
+  .doc-totals-table .amount {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    word-wrap: normal !important;
+    display: inline !important;
+  }
+  
+  /* Maintenir les largeurs fixes à l'impression */
+  .doc-articles-table th.qty,
+  .doc-articles-table td.qty {
+    width: 60px !important;
+    min-width: 60px !important;
+  }
+  
+  .doc-articles-table th.amount,
+  .doc-articles-table td.amount {
+    width: 140px !important;
+    min-width: 140px !important;
+  }
+  
+  .doc-articles-table th.percent,
+  .doc-articles-table td.percent {
+    width: 90px !important;
+    min-width: 90px !important;
+  }
+
+  .doc-totals-table .amount {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+  }
+}

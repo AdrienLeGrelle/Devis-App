@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import './App.css';
 import DevisForm from './components/DevisForm';
 import DevisPreview from './components/DevisPreview';
-import PDFGenerator from './utils/PDFGenerator';
 import { calculerTotalDevis } from './utils/devisUtils';
 import PrestationsView from './components/PrestationsView';
 import InventoryView from './components/InventoryView';
@@ -836,8 +835,6 @@ function App() {
       note: noteParts.join(' • '),
       setId: null,
       prepChecklist: [],
-      devisRef: devisData.numero || '',
-      formuleChoix: formule?.label || '',
       lieu: devisData.lieuPrestation || '',
       horaire: devisData.horairePrestation || '',
     };
@@ -846,36 +843,11 @@ function App() {
     setActiveTab('prestations');
   };
 
-  const generatePDF = async () => {
-    try {
-      const pdfBlob = PDFGenerator.generate(devisData, inventory, pricePerKm);
-      
-      if (window.electronAPI) {
-        const filename = `Devis_${devisData.numero || 'Nouveau'}_${devisData.date}.pdf`;
-        // Convertir le blob en ArrayBuffer puis en array
-        const arrayBuffer = await pdfBlob.arrayBuffer();
-        const result = await window.electronAPI.savePDF(
-          Array.from(new Uint8Array(arrayBuffer)),
-          filename
-        );
-        
-        if (result.success) {
-          alert(`Devis enregistré avec succès : ${result.path}`);
-        } else if (!result.canceled) {
-          alert(`Erreur lors de l'enregistrement : ${result.error}`);
-        }
-      } else {
-        // Fallback pour le navigateur
-        const url = URL.createObjectURL(pdfBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `Devis_${devisData.numero || 'Nouveau'}_${devisData.date}.pdf`;
-        link.click();
-        URL.revokeObjectURL(url);
-      }
-    } catch (error) {
-      alert(`Erreur lors de la génération du PDF : ${error.message}`);
-    }
+  const generatePDF = () => {
+    // Utilise window.print() : preview = PDF identiques (même HTML/CSS)
+    // L'utilisateur peut choisir "Enregistrer en PDF" dans la boîte de dialogue d'impression
+    setActiveTab('preview');
+    setTimeout(() => window.print(), 100);
   };
 
   return (
