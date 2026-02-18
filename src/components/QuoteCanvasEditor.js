@@ -6,12 +6,25 @@ import { PAGE_A4, saveLayout, getDefaultLayout } from '../utils/quoteLayout';
 
 const GRID = 8;
 
-function QuoteCanvasEditor({ layout, onLayoutChange, devisData, inventory, pricePerKm = 0.60 }) {
-  const [editMode, setEditMode] = useState(false);
+const QuoteCanvasEditor = React.forwardRef(function QuoteCanvasEditor(
+  { layout, onLayoutChange, devisData, inventory, pricePerKm = 0.60, defaultEditMode = false },
+  ref
+) {
+  const [editMode, setEditMode] = useState(defaultEditMode);
   const [selectedId, setSelectedId] = useState(null);
   const [locked, setLocked] = useState(false);
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
+  
+  // Combine ref externe avec ref interne
+  const setCanvasRef = useCallback((node) => {
+    canvasRef.current = node;
+    if (typeof ref === 'function') {
+      ref(node);
+    } else if (ref) {
+      ref.current = node;
+    }
+  }, [ref]);
 
   const items = layout?.items || [];
   const page = layout?.page || PAGE_A4;
@@ -116,11 +129,6 @@ function QuoteCanvasEditor({ layout, onLayoutChange, devisData, inventory, price
     updateItem(id, { zIndex: minZ - 1 });
   };
 
-  const handlePrint = () => {
-    setEditMode(false);
-    setTimeout(() => window.print(), 100);
-  };
-
   const renderItemContent = (item) => {
     if (item.type === 'image') {
       return <img src={item.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />;
@@ -163,9 +171,9 @@ function QuoteCanvasEditor({ layout, onLayoutChange, devisData, inventory, price
                 <tr key={i} style={{ borderBottom: '1px solid #e0e0e0' }}>
                   <td style={{ padding: 6 }}>{r.designation}</td>
                   <td style={numStyle}>{r.qty}</td>
-                  <td style={numStyle}>{r.pu}\u00A0€</td>
-                  <td style={numStyle}>{r.tva.replace(' ', '\u00A0')}</td>
-                  <td style={numStyle}>{r.total}\u00A0€</td>
+                  <td style={numStyle}>{r.pu} €</td>
+                  <td style={numStyle}>{r.tva}</td>
+                  <td style={numStyle}>{r.total} €</td>
                 </tr>
               ))}
             </tbody>
@@ -211,9 +219,6 @@ function QuoteCanvasEditor({ layout, onLayoutChange, devisData, inventory, price
             />
           </>
         )}
-        <button type="button" onClick={handlePrint}>
-          Imprimer / PDF
-        </button>
         <button type="button" onClick={() => onLayoutChange && onLayoutChange(getDefaultLayout())}>
           Réinitialiser
         </button>
@@ -231,12 +236,12 @@ function QuoteCanvasEditor({ layout, onLayoutChange, devisData, inventory, price
       </div>
 
       <div
-        ref={canvasRef}
         className="canvas-page-wrapper"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
         <div
+          ref={setCanvasRef}
           className="canvas-page"
           style={{
             width: page.width,
@@ -316,6 +321,6 @@ function QuoteCanvasEditor({ layout, onLayoutChange, devisData, inventory, price
       </div>
     </div>
   );
-}
+});
 
 export default QuoteCanvasEditor;

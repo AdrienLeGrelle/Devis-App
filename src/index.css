@@ -19,10 +19,12 @@ code {
     monospace;
 }
 
-/* Impression : afficher uniquement le document devis */
+/* Impression : preview = PDF (même HTML/CSS). Masquer l’UI, garder uniquement .document-renderer */
 @media print {
   body {
     background: white;
+    margin: 0;
+    padding: 0;
   }
 
   .App-header,
@@ -32,13 +34,24 @@ code {
   }
 
   .App-main {
-    padding: 0;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .devis-preview {
+    padding: 0 !important;
   }
 
   .preview-container {
     background: white !important;
     padding: 0 !important;
+    margin: 0 !important;
     box-shadow: none !important;
+  }
+
+  .preview-pages-wrapper {
+    padding: 0 !important;
+    margin: 0 !important;
   }
 }
 

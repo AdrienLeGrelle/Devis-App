@@ -296,6 +296,23 @@
   overflow-y: auto;
 }
 
+.editor-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7f1;
+}
+
+.editor-section-title {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  letter-spacing: 0.02em;
+}
+
 .editor-field {
   display: flex;
   flex-direction: column;

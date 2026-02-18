@@ -1,8 +1,39 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
 
 let mainWindow;
+
+const isDev = !app.isPackaged;
+
+function waitForReactServer() {
+  const DEV_URL = 'http://localhost:3000';
+  const INTERVAL = 400;
+  const MAX_ATTEMPTS = 150;
+
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+
+    const tryConnect = () => {
+      attempts += 1;
+      const req = http.get(DEV_URL, (res) => {
+        req.destroy();
+        resolve();
+      });
+      req.on('error', () => {
+        req.destroy();
+        if (attempts >= MAX_ATTEMPTS) {
+          reject(new Error('React dev server did not become ready in time. Ensure npm run dev:react is running on port 3000.'));
+          return;
+        }
+        setTimeout(tryConnect, INTERVAL);
+      });
+    };
+
+    tryConnect();
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -19,7 +50,6 @@ function createWindow() {
   });
 
   const buildIndexPath = path.join(app.getAppPath(), 'build', 'index.html');
-  const isDev = !app.isPackaged && process.env.NODE_ENV === 'development';
 
   const loadBuild = () => {
     if (!fs.existsSync(buildIndexPath)) {
@@ -35,11 +65,7 @@ function createWindow() {
   };
 
   if (isDev) {
-    // Essayer localhost:3000 en priorité (npm run dev) pour avoir le code à jour
-    mainWindow.loadURL('http://localhost:3000').catch((err) => {
-      console.log('localhost:3000 non disponible, chargement du build...');
-      loadBuild();
-    });
+    mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
   } else {
     loadBuild();
@@ -50,7 +76,16 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  if (isDev) {
+    try {
+      await waitForReactServer();
+    } catch (err) {
+      console.error(err.message);
+      app.quit();
+      return;
+    }
+  }
   createWindow();
 
   app.on('activate', () => {

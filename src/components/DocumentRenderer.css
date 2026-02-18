@@ -1,8 +1,8 @@
 /* ========== DocumentRenderer : pages A4 physiques ========== */
-/* Preview = PDF identiques : même HTML/CSS pour les deux */
+/* Preview = PDF identiques : même HTML/CSS (window.print sur ce contenu). */
 
 .document-renderer {
-  padding: 12mm;
+  padding: 0;
   box-sizing: border-box;
 }
 
@@ -14,15 +14,20 @@
   overflow: hidden;
   box-sizing: border-box;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
 }
 
+/* Espace entre pages en preview uniquement (pas en print) */
 .page + .page {
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
 .page-break {
   break-after: page;
   page-break-after: always;
+  break-before: page;
+  page-break-before: always;
 }
 
 /* Contenu page */
@@ -30,8 +35,10 @@
   position: relative;
   padding: 12mm;
   padding-bottom: 36px;
-  min-height: 100%;
+  min-height: calc(100% - 36px);
+  max-height: calc(100% - 36px);
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .doc-header {
@@ -101,6 +108,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  line-height: 1.4;
   table-layout: fixed;
 }
 
@@ -319,19 +327,24 @@
 
 /* Page MATÉRIEL */
 .doc-materiel-page .doc-header h1 {
-  font-size: 24px;
+  font-size: 20px;
 }
 
 .doc-materiel-subtitle {
-  font-size: 10px;
+  font-size: 9px;
   color: #666;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
+}
+
+.doc-materiel-table {
+  margin-top: 15px;
 }
 
 .doc-materiel-table table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 11px;
+  table-layout: fixed;
 }
 
 .doc-materiel-table thead {
@@ -341,21 +354,103 @@
 
 .doc-materiel-table th,
 .doc-materiel-table td {
-  padding: 12px;
+  padding: 8px 10px;
   border-bottom: 1px solid #e0e0e0;
+  vertical-align: top;
+}
+
+.doc-materiel-table th {
+  font-weight: 600;
 }
 
 .doc-materiel-table th.qty,
 .doc-materiel-table td.qty {
   text-align: center;
   white-space: nowrap;
+  width: 80px;
 }
 
-/* ========== @media print ========== */
+/* Catégories de matériel */
+.doc-materiel-category {
+  margin-bottom: 30px;
+}
+
+.doc-materiel-category:last-child {
+  margin-bottom: 0;
+}
+
+.doc-materiel-category-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #667eea;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #667eea;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.doc-materiel-category table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-bottom: 0;
+  table-layout: fixed;
+}
+
+.doc-materiel-category thead {
+  background: #667eea;
+  color: white;
+}
+
+.doc-materiel-category th,
+.doc-materiel-category td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #e0e0e0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.doc-materiel-category th {
+  padding: 8px 10px;
+  font-weight: 600;
+}
+
+.doc-materiel-category th.qty,
+.doc-materiel-category td.qty {
+  text-align: center;
+  white-space: nowrap;
+  width: 80px;
+}
+
+.doc-materiel-category tbody tr:hover {
+  background: #f9f9f9;
+}
+
+/* Message si aucun matériel */
+.doc-materiel-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #666;
+}
+
+.doc-materiel-empty p {
+  margin: 10px 0;
+  font-size: 14px;
+}
+
+.doc-materiel-empty-hint {
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
+}
+
+/* ========== @media print : rendu strictement identique à l'écran ========== */
+/* On ne change que le strict minimum : masquer l'UI, enlever ombres. Pas de changement de taille/couleur. */
 @media print {
   @page {
     size: A4;
-    margin: 12mm;
+    margin: 0;
   }
 
   body {
@@ -371,9 +466,14 @@
   }
 
   .page {
-    box-shadow: none;
-    margin: 0;
+    box-shadow: none !important;
+    margin: 0 !important;
     page-break-after: always;
+    page-break-inside: avoid;
+  }
+
+  .page:first-child {
+    page-break-before: auto;
   }
 
   .page:last-child {
@@ -381,7 +481,27 @@
   }
 
   .page + .page {
-    margin-top: 0;
+    margin-top: 0 !important;
+    page-break-before: always;
+  }
+
+  .doc-materiel-page {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .doc-page .page-inner {
+    padding-top: 12mm;
+    padding-left: 12mm;
+    padding-right: 12mm;
+  }
+
+  .doc-edit-mode .draggable-block-wrapper {
+    border: none !important;
+  }
+
+  .layout-drag-handle {
+    display: none !important;
   }
 
   .doc-page-footer-content {
@@ -389,50 +509,129 @@
     overflow: visible;
     text-overflow: clip;
   }
+}
 
-  /* Assurer que € et % ne se coupent pas à l'impression */
-  .doc-articles-table th.num,
-  .doc-articles-table td.num,
-  .doc-articles-table th.amount,
-  .doc-articles-table td.amount,
-  .doc-articles-table th.percent,
-  .doc-articles-table td.percent {
-    white-space: nowrap !important;
-    word-break: keep-all !important;
-    overflow-wrap: normal !important;
-    word-wrap: normal !important;
-    hyphens: none !important;
-  }
-  
-  .doc-totals-table .amount {
-    white-space: nowrap !important;
-    word-break: keep-all !important;
-    overflow-wrap: normal !important;
-    word-wrap: normal !important;
-    display: inline !important;
-  }
-  
-  /* Maintenir les largeurs fixes à l'impression */
-  .doc-articles-table th.qty,
-  .doc-articles-table td.qty {
-    width: 60px !important;
-    min-width: 60px !important;
-  }
-  
-  .doc-articles-table th.amount,
-  .doc-articles-table td.amount {
-    width: 140px !important;
-    min-width: 140px !important;
-  }
-  
-  .doc-articles-table th.percent,
-  .doc-articles-table td.percent {
-    width: 90px !important;
-    min-width: 90px !important;
-  }
+/* ========== Mode édition : blocs déplaçables, même aperçu ========== */
+.doc-edit-mode .page-inner {
+  min-height: 1200px;
+}
 
-  .doc-totals-table .amount {
-    white-space: nowrap !important;
-    word-break: keep-all !important;
-  }
+.doc-edit-mode .draggable-block-wrapper {
+  border: 2px dashed #667eea;
+  border-radius: 6px;
+  box-sizing: border-box;
+  background: transparent;
+}
+
+.doc-edit-block {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.layout-drag-handle {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 4px 6px;
+  font-size: 14px;
+  color: #667eea;
+  cursor: grab;
+  user-select: none;
+  letter-spacing: -2px;
+  z-index: 2;
+}
+
+.layout-drag-handle:active {
+  cursor: grabbing;
+}
+
+.doc-edit-block-content {
+  padding-top: 4px;
+  height: calc(100% - 12px);
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.doc-edit-image {
+  background: #f5f5f5;
+  border: 2px dashed #667eea;
+}
+
+.doc-edit-image .doc-edit-block-content {
+  padding: 0;
+  height: 100%;
+}
+
+.doc-edit-image .layout-drag-handle {
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 4px;
+}
+
+.doc-edit-image .image-delete-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doc-edit-image .image-delete-btn:hover {
+  background: #cc0000;
+}
+
+/* Image Rnd : déplacement + redimensionnement par les coins */
+.doc-image-rnd {
+  border: 2px dashed #667eea;
+  border-radius: 6px;
+  box-sizing: border-box;
+  background: #f5f5f5;
+}
+
+.doc-image-rnd .react-resizable-handle {
+  width: 16px;
+  height: 16px;
+  background: #667eea;
+  border-radius: 2px;
+}
+
+.doc-image-rnd .react-resizable-handle-se {
+  right: 2px;
+  bottom: 2px;
+}
+
+.doc-image-rnd .react-resizable-handle-sw {
+  left: 2px;
+  bottom: 2px;
+}
+
+.doc-image-rnd .react-resizable-handle-ne {
+  right: 2px;
+  top: 2px;
+}
+
+.doc-image-rnd .react-resizable-handle-nw {
+  left: 2px;
+  top: 2px;
+}
+
+.doc-image-rnd .react-resizable-handle-n,
+.doc-image-rnd .react-resizable-handle-s,
+.doc-image-rnd .react-resizable-handle-e,
+.doc-image-rnd .react-resizable-handle-w {
+  width: 12px;
+  height: 12px;
+  background: #667eea;
 }

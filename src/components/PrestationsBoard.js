@@ -22,7 +22,10 @@ const TYPE_OPTIONS = [
   'Soirée',
 ];
 
-// Les colonnes = source de vérité des statuts (statut = column.id)
+// Source de vérité des statuts : les colonnes (statut === column.id).
+// - Création depuis une colonne : startCreate(col.id) pré-remplit le statut.
+// - Édition : on garde le statut de la prestation.
+// - Drag/drop : handleDrop(columnId) met à jour le statut en store ; le useEffect resync le form si ouvert.
 const ORIGINE_OPTIONS = ['Adrien', 'Côme', 'Martin', 'Melodix'];
 const RESPONSABLE_OPTIONS = ['Adrien', 'Côme', 'Martin'];
 const COMM_OPTIONS = ['Autre', 'WhatsApp', 'Insta', 'Message', 'Mail', 'Messenger', 'messages'];
@@ -54,16 +57,16 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
     [grouped]
   );
 
-  const startCreate = (defaultStatut) => {
+  const startCreate = (defaultStatus) => {
     setMode('create');
-    const initialStatut = defaultStatut || columns[0].id;
+    const status = defaultStatus && columns.some((c) => c.id === defaultStatus) ? defaultStatus : columns[0].id;
     setFormData({
       id: `p-${Date.now()}`,
       nom: '',
       type: '',
       montant: 0,
       date: '',
-      statut: initialStatut,
+      statut: status,
       note: '',
       setId: null,
       prepChecklist: [],
@@ -137,7 +140,7 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
   return (
     <div className="prestations-board">
       <div className="board-actions">
-        <button className="btn-add" onClick={() => startCreate()}>➕ Nouvelle prestation</button>
+        <button className="btn-add" onClick={() => startCreate(undefined)}>➕ Nouvelle prestation</button>
       </div>
 
       {grouped.map((col) => (
@@ -164,7 +167,7 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
             {col.items.length === 0 && (
               <div className="empty">
                 Aucune prestation
-                <button type="button" className="btn-add-in-column" onClick={(e) => { e.stopPropagation(); startCreate(col.id); }}>
+                <button type="button" className="btn-add-in-column" onClick={(e) => { e.stopPropagation(); startCreate(col.id); }} title={`Nouvelle prestation dans « ${col.title } »`}>
                   ➕ Ajouter
                 </button>
               </div>
@@ -215,7 +218,7 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
                 </div>
               ))}
             {col.items.length > 0 && (
-              <button type="button" className="btn-add-in-column" onClick={(e) => { e.stopPropagation(); startCreate(col.id); }}>
+              <button type="button" className="btn-add-in-column" onClick={(e) => { e.stopPropagation(); startCreate(col.id); }} title={`Nouvelle prestation dans « ${col.title } »`}>
                 ➕ Ajouter
               </button>
             )}
@@ -285,7 +288,7 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
                 <label className="editor-field">
                   <span className="editor-label"><span className="editor-icon">📌</span> Status</span>
                   <select
-                    value={formData.statut || columns[0].id}
+                    value={formData.statut ?? columns[0].id}
                     onChange={(e) => setFormData({ ...formData, statut: e.target.value })}
                   >
                     {columns.map((c) => (
@@ -293,8 +296,11 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
                     ))}
                   </select>
                 </label>
+
+                <div className="editor-form-section">
+                  <h4 className="editor-section-title">Détails de la prestation</h4>
                 <label className="editor-field">
-                  <span className="editor-label"><span className="editor-icon">≡</span> horaire</span>
+                  <span className="editor-label"><span className="editor-icon">≡</span> Horaire</span>
                   <input
                     type="text"
                     value={formData.horaire || ''}
@@ -389,6 +395,7 @@ function PrestationsBoard({ prestations, onChange, inventory, onInventoryChange,
                     className="editor-note-textarea"
                   />
                 </label>
+                </div>
               </div>
 
               <div className="editor-actions">

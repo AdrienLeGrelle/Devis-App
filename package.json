@@ -6,7 +6,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "concurrently \"npm run dev:react\" \"wait-on http://localhost:3000 && NODE_ENV=development electron .\"",
+    "predev": "node scripts/check-port-3000.js",
+    "dev": "concurrently --kill-others \"npm run dev:react\" \"wait-on http://localhost:3000 && electron .\"",
     "dev:react": "react-scripts start",
     "build": "react-scripts build",
     "build:electron": "electron-builder",
@@ -22,6 +23,7 @@
   "license": "MIT",
   "dependencies": {
     "date-fns": "^2.30.0",
+    "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.2",
     "react": "^18.2.0",

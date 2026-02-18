@@ -3,6 +3,7 @@ import './App.css';
 import DevisForm from './components/DevisForm';
 import DevisPreview from './components/DevisPreview';
 import { calculerTotalDevis } from './utils/devisUtils';
+import { captureAndDownloadPdf } from './utils/pdfFromPreview';
 import PrestationsView from './components/PrestationsView';
 import InventoryView from './components/InventoryView';
 import ComptabiliteView from './components/ComptabiliteView';
@@ -55,6 +56,7 @@ function App() {
 
   const [activeTab, setActiveTab] = useState('form');
   const [facturant, setFacturant] = useState('adrien');
+  const previewPdfRef = useRef(null);
 
   // Gestion des formules (CRUD + persistance localStorage)
   const DEFAULT_FORMULAS = [
@@ -843,12 +845,15 @@ function App() {
     setActiveTab('prestations');
   };
 
-  const generatePDF = () => {
-    // Utilise window.print() : preview = PDF identiques (même HTML/CSS)
-    // L'utilisateur peut choisir "Enregistrer en PDF" dans la boîte de dialogue d'impression
+  const generatePDF = useCallback(async () => {
     setActiveTab('preview');
-    setTimeout(() => window.print(), 100);
-  };
+    await new Promise((r) => setTimeout(r, 450));
+    const el = previewPdfRef.current;
+    if (!el) return;
+    const num = devisData?.numero || 'devis';
+    const date = devisData?.date ? new Date(devisData.date).toISOString().slice(0, 10) : '';
+    await captureAndDownloadPdf(el, `Devis_${num}_${date}.pdf`);
+  }, [devisData?.numero, devisData?.date]);
 
   return (
     <div className="App">
@@ -937,6 +942,7 @@ function App() {
           />
         ) : activeTab === 'preview' ? (
           <DevisPreview
+            ref={previewPdfRef}
             devisData={devisData}
             inventory={inventory}
             registerUndoManager={registerUndoManager}
