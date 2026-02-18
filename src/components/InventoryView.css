@@ -88,6 +88,27 @@
 }
 
 /* Notes */
+.inventory-socle-commun {
+  margin: 24px 0;
+  padding: 20px;
+  background: #fafafa;
+  border-radius: 10px;
+  border: 1px solid #e5e7f1;
+}
+
+.inventory-socle-commun h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.socle-desc {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  color: #666;
+  font-style: italic;
+}
+
 .inventory-notes {
   margin-top: 8px;
   padding: 16px;

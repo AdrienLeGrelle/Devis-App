@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import './InventoryView.css';
 import SetAssignmentPanel from './SetAssignmentPanel';
+import SocleCommunPanel from './SocleCommunPanel';
 import { getAssignmentsForDate, getSetNamesForDate, SET_ZONES } from '../utils/inventoryAssignments';
+import { initializeStockCommunAnnexe } from '../utils/stockCommunAnnexe';
 
-const CATEGORIES = ['SON', 'LUMIERE', 'DJ'];
+const CATEGORIES = ['SON', 'LUMIERE', 'DJ', 'ANNEXES'];
 
 function InventoryView({ inventory, onInventoryChange, selectedDate: selectedDateProp, onDateChange }) {
   const items = inventory?.items || [];
@@ -406,6 +408,26 @@ function InventoryView({ inventory, onInventoryChange, selectedDate: selectedDat
             </div>
           </div>
         )}
+      </div>
+
+      {/* Stock commun annexe - tout en bas de la page */}
+      <div className="inventory-socle-commun">
+        <h3>Stock commun annexe</h3>
+        <p className="socle-desc">
+          Gestion indépendante du stock commun annexe pour chaque formule. Cliquez sur le nom d'un item pour l'éditer, ou utilisez "+ Ajouter" pour ajouter du matériel.
+        </p>
+        <SocleCommunPanel
+          stockAnnexe={inventory?.socleCommun?.stockAnnexe || {}}
+          onStockAnnexeChange={(updated) => {
+            onInventoryChange({
+              ...inventory,
+              socleCommun: {
+                ...(inventory?.socleCommun || {}),
+                stockAnnexe: updated,
+              },
+            });
+          }}
+        />
       </div>
     </div>
   );

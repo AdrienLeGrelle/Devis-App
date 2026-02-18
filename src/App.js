@@ -9,6 +9,7 @@ import InventoryView from './components/InventoryView';
 import ComptabiliteView from './components/ComptabiliteView';
 import inventorySeed from './data/inventory.json';
 import { SETS, DEFAULT_FORMULE_PRESETS } from './utils/inventoryAssignments';
+import { initializeStockCommunAnnexe } from './utils/stockCommunAnnexe';
 import { melodixEntreprise } from './config/melodix';
 import { useUndoRedo } from './hooks/useUndoRedo';
 import { migrateMarcheConcluToFini } from './utils/prestationsUtils';
@@ -757,7 +758,10 @@ function App() {
           defectNotes: parsed.defectNotes || {},
           shoppingList: parsed.shoppingList || [],
           formulePresets: parsed.formulePresets || { ...DEFAULT_FORMULE_PRESETS },
+          socleCommun: parsed.socleCommun || {},
         };
+        // Initialiser le stock commun annexe si manquant
+        inv = initializeStockCommunAnnexe(inv);
       } else {
         inv = {
           ...inventorySeed,
@@ -766,7 +770,10 @@ function App() {
           defectNotes: {},
           shoppingList: [],
           formulePresets: { ...DEFAULT_FORMULE_PRESETS },
+          socleCommun: {},
         };
+        // Initialiser le stock commun annexe
+        inv = initializeStockCommunAnnexe(inv);
       }
     } else {
       inv = {
@@ -776,7 +783,10 @@ function App() {
         defectNotes: {},
         shoppingList: [],
         formulePresets: { ...DEFAULT_FORMULE_PRESETS },
+        socleCommun: [],
       };
+      // Initialiser les socles par défaut
+      inv = initializeDefaultSocles(inv);
     }
     setInventory(inv);
     localStorage.setItem('inventory', JSON.stringify(inv));
