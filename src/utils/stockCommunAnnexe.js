@@ -158,3 +158,39 @@ export function initializeStockCommunAnnexe(inventory) {
     },
   };
 }
+
+/**
+ * Extrait le nom de la formule depuis le label (ex: "Formule Classique" -> "Classique")
+ * Supporte différents formats : "Formule Classique", "Classique", etc.
+ */
+export function extractFormuleName(formuleLabel) {
+  if (!formuleLabel) return null;
+  const label = formuleLabel.toLowerCase().trim();
+  
+  // Vérifier directement si c'est un nom exact
+  if (label === 'classique' || label === 'premium' || label === 'excellence') {
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+  
+  // Chercher dans le label
+  if (label.includes('classique')) return 'Classique';
+  if (label.includes('premium')) return 'Premium';
+  if (label.includes('excellence')) return 'Excellence';
+  
+  return null;
+}
+
+/**
+ * Récupère le stock commun annexe pour une formule donnée
+ * @param {Object} inventory - L'inventaire contenant socleCommun.stockAnnexe
+ * @param {string} formuleLabel - Le label de la formule (ex: "Formule Classique")
+ * @returns {Array} Liste des items du stock commun annexe pour cette formule
+ */
+export function getStockCommunAnnexeForFormule(inventory, formuleLabel) {
+  if (!inventory?.socleCommun?.stockAnnexe) return [];
+  
+  const formuleName = extractFormuleName(formuleLabel);
+  if (!formuleName || !FORMULES.includes(formuleName)) return [];
+  
+  return inventory.socleCommun.stockAnnexe[formuleName] || [];
+}

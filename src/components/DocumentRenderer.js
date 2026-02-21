@@ -6,6 +6,7 @@ import { getItemsBySet, calculerTotalDevis } from '../utils/devisUtils';
 import { formatFooterEntreprise } from '../utils/formatFooterEntreprise';
 import DraggableBlock from './DraggableBlock';
 import { PAGE_PADDING } from '../utils/docLayout';
+import { getStockCommunAnnexeForFormule } from '../utils/stockCommunAnnexe';
 import './DocumentRenderer.css';
 
 const IMAGE_GRID = 8;
@@ -59,6 +60,11 @@ const DocumentRenderer = React.forwardRef(function DocumentRenderer(
     SON: materials.filter((item) => item.category === 'SON'),
     LUMIERE: materials.filter((item) => item.category === 'LUMIERE'),
   };
+  
+  // Récupérer le stock commun annexe pour la formule choisie
+  const annexes = formule?.label
+    ? getStockCommunAnnexeForFormule(inventory, formule.label)
+    : [];
   
   // Vérifier s'il y a du matériel dans au moins une catégorie
   const hasAnyMaterial = Object.values(materialsByCategory).some((items) => items.length > 0);
@@ -641,31 +647,60 @@ const DocumentRenderer = React.forwardRef(function DocumentRenderer(
             </div>
             <div className="doc-materiel-table">
               {hasAnyMaterial ? (
-                Object.entries(materialsByCategory).map(([category, items]) => {
-                  if (items.length === 0) return null;
-                  return (
-                    <div key={category} className="doc-materiel-category">
-                      <h3 className="doc-materiel-category-title">{category}</h3>
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Matériel</th>
-                            <th className="num qty">Qté</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {items.map((item) => (
-                            <tr key={item.id}>
-                              <td>{item.fullName || item.name}</td>
-                              <td className="num qty">{item.qty ?? 1}</td>
+                <>
+                  {Object.entries(materialsByCategory).map(([category, items]) => {
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={category} className="doc-materiel-category">
+                        <h3 className="doc-materiel-category-title">{category}</h3>
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Matériel</th>
+                              <th className="num qty">Qté</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                })
-              ) : (
+                          </thead>
+                          <tbody>
+                            {items.map((item) => (
+                              <tr key={item.id}>
+                                <td>{item.fullName || item.name}</td>
+                                <td className="num qty">{item.qty ?? 1}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+                </>
+              ) : null}
+              
+              {/* Section ANNEXES - Stock commun annexe (tous les éléments affichés) */}
+              {annexes.length > 0 && (
+                <div className="doc-materiel-category doc-materiel-annexes">
+                  <h3 className="doc-materiel-category-title">ANNEXES</h3>
+                  <div className="doc-annexes-wrapper">
+                    <table className="doc-annexes-table">
+                      <thead>
+                        <tr>
+                          <th>Matériel</th>
+                          <th className="num qty">Qté</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {annexes.map((item) => (
+                          <tr key={item.id}>
+                            <td>{item.label}</td>
+                            <td className="num qty">{item.qty ?? 1}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              
+              {!hasAnyMaterial && annexes.length === 0 && (
                 <div className="doc-materiel-empty">
                   <p>Aucun matériel assigné pour cette date de prestation.</p>
                   <p className="doc-materiel-empty-hint">

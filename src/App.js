@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import './App.css';
 import DevisForm from './components/DevisForm';
 import DevisPreview from './components/DevisPreview';
@@ -13,6 +13,8 @@ import { initializeStockCommunAnnexe } from './utils/stockCommunAnnexe';
 import { melodixEntreprise } from './config/melodix';
 import { useUndoRedo } from './hooks/useUndoRedo';
 import { migrateMarcheConcluToFini } from './utils/prestationsUtils';
+import { loadStateFromSupabase, createDebouncedSave, serializeAppState } from './services/appStateSync';
+import { saveAppState, isSupabaseAvailable } from './services/appStateApi';
 
 function App() {
   const [devisData, setDevisData] = useState(() => {
@@ -58,6 +60,13 @@ function App() {
   const [activeTab, setActiveTab] = useState('form');
   const [facturant, setFacturant] = useState('adrien');
   const previewPdfRef = useRef(null);
+  const [syncStatus, setSyncStatus] = useState('loading'); // 'loading' | 'synced' | 'offline'
+  const syncStatusRef = useRef('loading'); // Ref pour éviter les boucles
+  const debouncedSaveRef = useRef(null);
+  const isInitialLoadRef = useRef(true);
+  const hasHydratedRef = useRef(false);
+  const isHydratingRef = useRef(false);
+  const prestationsUndoRef = useRef(null);
 
   // Gestion des formules (CRUD + persistance localStorage)
   const DEFAULT_FORMULAS = [
@@ -668,6 +677,7 @@ function App() {
 
   const prestationsUndo = useUndoRedo(initialPrestations, 50);
   const prestations = prestationsUndo.present;
+  prestationsUndoRef.current = prestationsUndo;
 
   const handlePrestationsChange = useCallback(
     (newVal) => {
@@ -744,8 +754,280 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Inventaire : chargement + persistance (si vide ou absent, on charge la liste par défaut)
+  // Initialisation : Chargement depuis Supabase au démarrage (UNE SEULE FOIS)
   useEffect(() => {
+    // Garde-fou : ne pas exécuter si déjà hydraté
+    if (hasHydratedRef.current) {
+      return;
+    }
+    
+    let mounted = true;
+    isHydratingRef.current = true;
+    
+    const initializeFromSupabase = async () => {
+      if (!isSupabaseAvailable()) {
+        console.log('[AppState] Supabase non disponible, utilisation du localStorage local');
+        syncStatusRef.current = 'offline';
+        setSyncStatus('offline');
+        isInitialLoadRef.current = false;
+        hasHydratedRef.current = true;
+        isHydratingRef.current = false;
+        return;
+      }
+
+      try {
+        // État par défaut depuis localStorage
+        const defaultState = {
+          devisData: (() => {
+            const today = new Date().toISOString().split('T')[0];
+            const y = today.slice(0, 4);
+            const m = today.slice(5, 7);
+            const d = today.slice(8, 10);
+            return {
+              numero: `DEV-${y}${m}${d}`,
+              date: today,
+              validite: 30,
+              dateDebutPrestation: '',
+              horairePrestation: '',
+              lieuPrestation: '',
+              formuleChoisie: null,
+              optionsChoisies: [],
+              kmDeplacement: 0,
+              entreprise: { nom: '', adresse: '', codePostal: '', ville: '', telephone: '', email: '', siret: '', codeAPE: '', tva: '' },
+              client: { prenom: '', nom: '', adresse: '', codePostal: '', ville: '', telephone: '', email: '' },
+              notes: '',
+              conditions: 'Paiement à réception de facture. Délai de paiement : 30 jours.'
+            };
+          })(),
+          formulas: (() => {
+            try {
+              const raw = localStorage.getItem('melodix_formulas');
+              const parsed = raw ? JSON.parse(raw) : null;
+              return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_FORMULAS;
+            } catch (e) {
+              return DEFAULT_FORMULAS;
+            }
+          })(),
+          options: (() => {
+            try {
+              const raw = localStorage.getItem('melodix_options');
+              const parsed = raw ? JSON.parse(raw) : null;
+              return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_OPTIONS;
+            } catch (e) {
+              return DEFAULT_OPTIONS;
+            }
+          })(),
+          pricePerKm: (() => {
+            try {
+              const raw = localStorage.getItem('melodix_price_per_km');
+              const parsed = raw ? parseFloat(raw) : null;
+              return parsed != null && !isNaN(parsed) && parsed >= 0 ? parsed : DEFAULT_PRICE_PER_KM;
+            } catch (e) {
+              return DEFAULT_PRICE_PER_KM;
+            }
+          })(),
+          inventory: (() => {
+            try {
+              const raw = localStorage.getItem('inventory');
+              return raw ? JSON.parse(raw) : { items: [], sets: [] };
+            } catch (e) {
+              return { items: [], sets: [] };
+            }
+          })(),
+          prestations: (() => {
+            try {
+              const raw = localStorage.getItem('prestations');
+              return raw ? JSON.parse(raw) : [];
+            } catch (e) {
+              return [];
+            }
+          })(),
+          facturant: (() => {
+            try {
+              return localStorage.getItem('facturant') || 'adrien';
+            } catch (e) {
+              return 'adrien';
+            }
+          })(),
+          facturantPresets: (() => {
+            try {
+              const raw = localStorage.getItem('facturantPresets');
+              return raw ? JSON.parse(raw) : {};
+            } catch (e) {
+              return {};
+            }
+          })(),
+        };
+
+        const loadedState = await loadStateFromSupabase(defaultState);
+        
+        if (!mounted) return;
+
+        if (loadedState) {
+          // Hydrater depuis Supabase
+          console.log('[AppState] État chargé depuis Supabase, hydratation...');
+          
+          // IMPORTANT: isHydratingRef.current = true empêche la sauvegarde automatique
+          // Mettre à jour tous les états en batch (React les batch automatiquement)
+          // Ces setState ne déclencheront PAS la sauvegarde car le useEffect de sauvegarde vérifie isHydratingRef
+          
+          // Comparer avant de setState pour éviter les updates inutiles
+          const shouldUpdateDevis = JSON.stringify(devisData) !== JSON.stringify(loadedState.devisData);
+          const shouldUpdateFormulas = JSON.stringify(formulas) !== JSON.stringify(loadedState.formulas);
+          const shouldUpdateOptions = JSON.stringify(options) !== JSON.stringify(loadedState.options);
+          const shouldUpdatePricePerKm = pricePerKm !== loadedState.pricePerKm;
+          const shouldUpdateFacturant = facturant !== loadedState.facturant;
+          
+          if (shouldUpdateDevis) setDevisData(loadedState.devisData);
+          if (shouldUpdateFormulas) setFormulas(loadedState.formulas);
+          if (shouldUpdateOptions) setOptions(loadedState.options);
+          if (shouldUpdatePricePerKm) setPricePerKm(loadedState.pricePerKm);
+          if (shouldUpdateFacturant) setFacturant(loadedState.facturant);
+          
+          // Inventory nécessite une initialisation spéciale
+          if (loadedState.inventory && (loadedState.inventory.items || loadedState.inventory.socleCommun)) {
+            const inv = initializeStockCommunAnnexe(loadedState.inventory);
+            const shouldUpdateInventory = JSON.stringify(inventory) !== JSON.stringify(inv);
+            if (shouldUpdateInventory) {
+              setInventory(inv);
+              localStorage.setItem('inventory', JSON.stringify(inv));
+            }
+          }
+          
+          // Prestations
+          if (loadedState.prestations && Array.isArray(loadedState.prestations) && loadedState.prestations.length > 0) {
+            const { prestations: migrated } = migrateMarcheConcluToFini(loadedState.prestations);
+            localStorage.setItem('prestations', JSON.stringify(migrated));
+            // Appliquer via le ref après que prestationsUndo soit créé
+            setTimeout(() => {
+              if (prestationsUndoRef.current && mounted) {
+                prestationsUndoRef.current.setPresent(migrated, { commit: false });
+              }
+            }, 100);
+          }
+          
+          // Facturant presets
+          if (loadedState.facturantPresets) {
+            localStorage.setItem('facturantPresets', JSON.stringify(loadedState.facturantPresets));
+          }
+          
+          syncStatusRef.current = 'synced';
+          setSyncStatus('synced');
+          console.log('[AppState] ✓ Hydratation terminée');
+        } else {
+          // Pas d'état dans Supabase, initialiser avec l'état local actuel
+          console.log('[AppState] Aucun état dans Supabase, initialisation avec l\'état local');
+          
+          // Utiliser defaultState au lieu des états React (qui peuvent être vides au premier render)
+          const currentState = serializeAppState({
+            devisData: defaultState.devisData,
+            formulas: defaultState.formulas,
+            options: defaultState.options,
+            pricePerKm: defaultState.pricePerKm,
+            inventory: defaultState.inventory,
+            prestations: defaultState.prestations,
+            facturant: defaultState.facturant,
+            facturantPresets: defaultState.facturantPresets,
+          });
+          
+          // Sauvegarder directement (pas via debounce) car c'est l'initialisation
+          // isHydratingRef est toujours true ici, donc pas de conflit
+          const saved = await saveAppState(currentState);
+          const newStatus = saved ? 'synced' : 'offline';
+          syncStatusRef.current = newStatus;
+          setSyncStatus(newStatus);
+          if (saved) {
+            console.log('[AppState] ✓ État local sauvegardé dans Supabase');
+          }
+        }
+      } catch (error) {
+        console.error('[AppState] Erreur lors de l\'initialisation:', error);
+        syncStatusRef.current = 'offline';
+        setSyncStatus('offline');
+      } finally {
+        if (mounted) {
+          // IMPORTANT: Marquer l'hydratation comme terminée APRÈS tous les setState
+          // Cela garantit que le useEffect de sauvegarde ne se déclenchera pas
+          isInitialLoadRef.current = false;
+          isHydratingRef.current = false;
+          // Marquer hasHydrated APRÈS avoir fini l'hydratation
+          setTimeout(() => {
+            hasHydratedRef.current = true;
+            console.log('[AppState] ✓ Hydratation complète, sauvegarde automatique activée');
+          }, 100);
+        }
+      }
+    };
+
+    // Attendre un peu pour que tous les hooks soient initialisés
+    setTimeout(() => {
+      initializeFromSupabase();
+    }, 100);
+
+    return () => {
+      mounted = false;
+    };
+  }, []); // Seulement au montage - dépendances vides pour exécution unique
+
+  // Initialiser le debounced save
+  useEffect(() => {
+    debouncedSaveRef.current = createDebouncedSave(500);
+  }, []);
+
+  // Mémoriser facturantPresets pour éviter les recréations (lu depuis localStorage, stable)
+  const facturantPresets = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('facturantPresets');
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }, []); // Ne dépend de rien, lu depuis localStorage une seule fois
+
+  // Créer un objet stable pour la persistance (useMemo pour éviter les recréations)
+  const stateToPersist = useMemo(() => {
+    return {
+      devisData,
+      formulas,
+      options,
+      pricePerKm,
+      inventory,
+      prestations,
+      facturant,
+      facturantPresets,
+    };
+  }, [devisData, formulas, options, pricePerKm, inventory, prestations, facturant, facturantPresets]);
+
+  // Sauvegarde automatique vers Supabase à chaque changement d'état
+  useEffect(() => {
+    // GARDE-FOUS STRICTS pour éviter toute boucle :
+    // 1. Ne pas sauvegarder pendant le chargement initial
+    // 2. Ne pas sauvegarder si pas encore hydraté
+    // 3. Ne pas sauvegarder si en cours d'hydratation
+    // 4. Ne pas sauvegarder si debounce non initialisé
+    if (isInitialLoadRef.current || !hasHydratedRef.current || isHydratingRef.current || !debouncedSaveRef.current) {
+      return;
+    }
+
+    // Sauvegarder via debounce (ne fait PAS de setState, donc pas de boucle)
+    debouncedSaveRef.current(stateToPersist, (success) => {
+      // Le callback met à jour syncStatus via ref ET useState pour éviter les boucles
+      const newStatus = success ? 'synced' : 'offline';
+      if (syncStatusRef.current !== newStatus) {
+        syncStatusRef.current = newStatus;
+        setSyncStatus(newStatus);
+      }
+    });
+  }, [stateToPersist]); // Dépend uniquement de l'objet stable
+
+  // Inventaire : chargement + persistance (si vide ou absent, on charge la liste par défaut)
+  // IMPORTANT: Ne s'exécute QUE si pas encore hydraté depuis Supabase
+  useEffect(() => {
+    // Ne pas réinitialiser si déjà chargé depuis Supabase ou si en cours d'hydratation
+    if (!isInitialLoadRef.current || hasHydratedRef.current || isHydratingRef.current) {
+      return;
+    }
+    
     const savedInventory = localStorage.getItem('inventory');
     let inv;
     if (savedInventory) {
@@ -783,16 +1065,21 @@ function App() {
         defectNotes: {},
         shoppingList: [],
         formulePresets: { ...DEFAULT_FORMULE_PRESETS },
-        socleCommun: [],
+        socleCommun: {},
       };
-      // Initialiser les socles par défaut
-      inv = initializeDefaultSocles(inv);
+      // Initialiser le stock commun annexe
+      inv = initializeStockCommunAnnexe(inv);
     }
     setInventory(inv);
     localStorage.setItem('inventory', JSON.stringify(inv));
   }, []);
 
+  // Persistance inventory dans localStorage (seulement si pas en cours d'hydratation)
   useEffect(() => {
+    // Ne pas sauvegarder pendant l'hydratation Supabase
+    if (isHydratingRef.current || !hasHydratedRef.current) {
+      return;
+    }
     if (inventory?.items?.length) {
       localStorage.setItem('inventory', JSON.stringify(inventory));
     }
@@ -815,7 +1102,16 @@ function App() {
       if (id === 'adrien') return melodixEntreprise;
       return { nom: '', adresse: '', codePostal: '', ville: '', telephone: '', email: '', siret: '', codeAPE: '', tva: '', ...presets[id] };
     };
-    setDevisData((prev) => ({ ...prev, entreprise: getEntreprise(facturant) }));
+    const newEntreprise = getEntreprise(facturant);
+    setDevisData((prev) => {
+      // Comparer avant de mettre à jour pour éviter les updates inutiles
+      const currentEntreprise = prev.entreprise || {};
+      const entreprisesEqual = JSON.stringify(currentEntreprise) === JSON.stringify(newEntreprise);
+      if (entreprisesEqual) {
+        return prev; // Pas de changement, retourner l'objet précédent
+      }
+      return { ...prev, entreprise: newEntreprise };
+    });
   }, [facturant]);
 
   const createPrestationFromDevis = () => {
@@ -930,6 +1226,14 @@ function App() {
         </button>
       </div>
 
+      {/* Indicateur de synchronisation (optionnel, discret) */}
+      {isSupabaseAvailable() && (
+        <div className="sync-indicator" title={`Synchronisation: ${syncStatus === 'synced' ? 'Synchronisé' : syncStatus === 'loading' ? 'Chargement...' : 'Hors ligne'}`}>
+          {syncStatus === 'synced' && '✓ Synced'}
+          {syncStatus === 'loading' && '⟳ Loading...'}
+          {syncStatus === 'offline' && '⚠ Offline'}
+        </div>
+      )}
       <main className="App-main">
         {activeTab === 'form' ? (
           <DevisForm

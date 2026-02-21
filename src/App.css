@@ -26,6 +26,25 @@
   margin: 0;
 }
 
+.sync-indicator {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  padding: 4px 8px;
+  font-size: 10px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  z-index: 1000;
+  font-family: monospace;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.sync-indicator:hover {
+  opacity: 1;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
