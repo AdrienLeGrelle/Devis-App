@@ -1,13 +1,17 @@
 {
   "files": {
-    "main.css": "/Devis-App/static/css/main.485854d3.css",
-    "main.js": "/Devis-App/static/js/main.028fae3d.js",
+    "main.css": "/Devis-App/static/css/main.b0ec87ce.css",
+    "main.js": "/Devis-App/static/js/main.b55839b7.js",
+    "static/js/213.0ee9a9e7.chunk.js": "/Devis-App/static/js/213.0ee9a9e7.chunk.js",
+    "static/js/455.cfad3f15.chunk.js": "/Devis-App/static/js/455.cfad3f15.chunk.js",
     "index.html": "/Devis-App/index.html",
-    "main.485854d3.css.map": "/Devis-App/static/css/main.485854d3.css.map",
-    "main.028fae3d.js.map": "/Devis-App/static/js/main.028fae3d.js.map"
+    "main.b0ec87ce.css.map": "/Devis-App/static/css/main.b0ec87ce.css.map",
+    "main.b55839b7.js.map": "/Devis-App/static/js/main.b55839b7.js.map",
+    "213.0ee9a9e7.chunk.js.map": "/Devis-App/static/js/213.0ee9a9e7.chunk.js.map",
+    "455.cfad3f15.chunk.js.map": "/Devis-App/static/js/455.cfad3f15.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.485854d3.css",
-    "static/js/main.028fae3d.js"
+    "static/css/main.b0ec87ce.css",
+    "static/js/main.b55839b7.js"
   ]
 }
